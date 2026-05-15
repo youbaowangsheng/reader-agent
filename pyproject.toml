@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "reader-agent"
+version = "0.1.0"
+description = "AI reading assistant - single agent with skills"
+authors = ["admin"]
+readme = "README.md"
+packages = [{include = "reader_agent", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+langgraph = "^0.3"
+langchain = "^0.3"
+langchain-openai = "^0.3"
+pymupdf = "^1.25"
+python-dotenv = "^1.0"
+pytest = "^8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
