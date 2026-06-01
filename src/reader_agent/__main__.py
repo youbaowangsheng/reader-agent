@@ -1,7 +1,7 @@
 """CLI entry: poetry run python -m reader_agent <path>"""
 import sys
 from pathlib import Path
-from reader_agent.graph import build_agent
+from reader_agent.service import generate_note_for_file
 
 
 def main():
@@ -14,26 +14,15 @@ def main():
         print(f"Not found: {target_path}")
         sys.exit(1)
 
-    is_dir = target_path.is_dir()
-    file_type = "folder" if is_dir else target_path.suffix.lower()
-    print(f"📖 {'Folder' if is_dir else file_type.upper()}: {target_path}")
-    print("🤖 Agent working...\n")
+    if target_path.is_dir():
+        print("Folder mode is not implemented in CLI yet. Use Streamlit for batch processing.")
+        sys.exit(1)
 
-    agent = build_agent()
-    result = agent.invoke({
-        "messages": [{
-            "role": "user",
-            "content": f"请阅读并生成笔记：{target_path}"
-        }]
-    })
-
-    for msg in result["messages"]:
-        if msg.type == "ai":
-            print(msg.content)
-        elif msg.type == "tool":
-            print(f"🔧 {msg.name}: {str(msg.content)[:300]}...")
-
-    print("\n✅ Done")
+    print(f"📖 File: {target_path}")
+    print("🤖 Generating note...\n")
+    result = generate_note_for_file(target_path)
+    print(f"✅ Done: {result.note_path}")
+    print(f"🔎 Index: {result.index_path}")
 
 
 if __name__ == "__main__":

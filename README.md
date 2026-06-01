@@ -1,177 +1,166 @@
 # Reader Agent
 
-AI-powered reading assistant for academic papers, reports, and ebooks. Upload a PDF or EPUB, get structured reading notes with concept maps and citation graphs.
+Reader Agent 是“英文论文阅读业务层”。
+它负责文档解析、阅读任务编排、笔记渲染；AI 推理能力通过可切换后端提供（直连模型或 FIPAI 中台）。
+
+## 业务层 vs 中台层
+
+- 业务层（Reader Agent）：
+  - PDF/EPUB 解析
+  - 阅读笔记结构定义
+  - Streamlit 阅读交互
+  - 笔记存储与管理
+- 中台层（FIPAI）：
+  - 模型路由、重试、降级
+  - 统一鉴权与调用审计
+  - 成本/Token 统计
+  - Agent 实例化与工作流编排
 
 ## Features
 
-- **Single-Agent + Skills Architecture** — One ReAct agent with modular tools (parse, summarize, extract concepts, save notes)
-- **PDF & EPUB Support** — Parses structured sections from both formats
-- **Structured Notes** — One-sentence summary, chapter highlights, terminology glossary, critical thinking, original quotes
-- **Concept Relationship Maps** — Mermaid flowcharts showing causal chains between key concepts
-- **Citation Graphs** — Extracted references with author/year/title/venue
-- **Reading Mode UI** — Dark-themed Streamlit reader with adjustable font size, line height, and content width
-- **Batch Processing** — Process entire folders of documents
+- PDF & EPUB 结构化解析
+- 学术阅读笔记自动生成（摘要/概念/引用/批判性思考）
+- 本地 RAG：chunk + embedding + JSON vector store + citation metadata
+- 阅读页对话面板（回答附带 chunk/page/heading 引用）
+- 交互入口：自由提问 / 选中段落提问 / 术语追问
+- 会话级事实记忆（同一篇文献多轮问答自动带入已确认结论）
+- 结构化事实卡片（结论/证据/置信度，可在阅读页回顾）
+- Streamlit 阅读模式（字号/行距可调 + 章节导航）
+- 可切换 AI Provider：`direct` 或 `fipai`
 
 ## Tech Stack
 
 | Layer | Tool |
 |-------|------|
-| Multi-Agent Framework | LangGraph (ReAct) |
-| LLM | DeepSeek (OpenAI-compatible API) |
-| PDF Parsing | PyMuPDF |
-| EPUB Parsing | Standard library (zipfile + xml.etree) |
-| UI | Streamlit |
+| Business Layer | Python + Streamlit |
+| Parsing | PyMuPDF + 标准库 EPUB 解析 |
+| AI Backend Adapter | Direct LLM / FIPAI Instance API |
 | Dependency Management | Poetry |
 
 ## Quick Start
 
-### 1. Clone & Setup
+### 1. Setup
 
 ```bash
-git clone <repo-url>
 cd reader-agent
 cp .env.example .env
-# Edit .env with your DeepSeek API key
 ```
 
-### 2. Install Dependencies
+### 2. Install
 
 ```bash
-# Using Poetry
 poetry install
-
-# Or using pip
-python3 -m venv .venv
-source .venv/bin/activate
-pip install langgraph langchain-openai pymupdf python-dotenv streamlit markdown
 ```
 
-### 3. Run
+### 3. Configure AI backend
 
-**CLI mode:**
+`direct`（默认，直连 OpenAI-compatible API）:
+
 ```bash
-# Single file
-PYTHONPATH=src python3 -m reader_agent ~/Downloads/paper.pdf
-
-# Batch folder
-PYTHONPATH=src python3 -m reader_agent ~/Documents/ebooks/
+AI_PROVIDER=direct
+DEEPSEEK_API_KEY=...
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-chat
 ```
 
-**Streamlit UI:**
+`fipai`（通过 FIPAI 中台实例）:
+
+```bash
+AI_PROVIDER=fipai
+FIPAI_BASE_URL=http://127.0.0.1:8000
+FIPAI_INSTANCE_ID=<instance-uuid>
+FIPAI_BEARER_TOKEN=<optional>
+FIPAI_API_KEY=<optional>
+```
+
+如果你使用当前仓库里 FIPAI 的 `seed` 数据，Reader 实例默认是：
+`FIPAI_INSTANCE_ID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb`
+
+### 4. Run
+
 ```bash
 streamlit run app.py
-# Open http://localhost:8501
+```
+
+CLI（单文件）:
+
+```bash
+PYTHONPATH=src python -m reader_agent ~/Downloads/paper.pdf
+```
+
+## Architecture
+
+```text
+[User Input: PDF/EPUB]
+        |
+        v
+[Reader Agent Business Service]
+  |- parse_pdf / parse_epub
+  |- build rag index (chunks + embeddings)
+  |- build reading task
+  |- qa with citations
+  |- save note markdown
+        |
+        v
+[AI Backend Adapter]
+  |- DirectLLMBackend (legacy/direct)
+  |- FIPAIBackend (platform)
+        |
+        v
+[Output: *_阅读笔记.md]
+[RAG Index: output/.rag/doc_xxx.json]
+```
+
+## FIPAI 对接约定（当前版本）
+
+`generate_reading_note` 任务：
+- 入参：`input.task=generate_reading_note` + `input.document`
+- 返回：`output.note_markdown`（或兼容字段）
+
+`answer_with_citations` 任务：
+- 入参：`input.task=answer_with_citations` + `input.question` + `input.retrieved_chunks`
+- 推荐返回：
+```json
+{
+  "output": {
+    "answer": "...",
+    "citations": [
+      {"chunk_id": "...", "quote": "...", "heading": "...", "page_range": "..."}
+    ]
+  }
+}
 ```
 
 ## Environment Variables
 
 ```bash
-DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+AI_PROVIDER=direct
+
+DEEPSEEK_API_KEY=
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
+
+FIPAI_BASE_URL=http://127.0.0.1:8000
+FIPAI_INSTANCE_ID=
+FIPAI_BEARER_TOKEN=
+FIPAI_API_KEY=
+FIPAI_TIMEOUT_SEC=120
+
+RAG_MIN_CITATIONS=2
 OUTPUT_DIR=./output
 ```
 
-## Architecture
-
-```
-[User Input] → [PDF/EPUB/Folder]
-      ↓
-[Reader Agent] (ReAct loop)
-      ↓
-├── parse_pdf / parse_epub → structured sections
-├── extract_references → citation list
-└── save_notes → markdown output
-      ↓
-[Output]
-├── *_阅读笔记.md  (structured notes)
-├── Concept map (Mermaid)
-└── Citation table
-```
-
-### Agent Design Philosophy
-
-**Single Agent + Skills**, not multi-agent orchestration:
-- One ReAct agent handles reasoning, planning, and output generation
-- Tools are external capabilities (file I/O, parsing), not internal cognitive tasks
-- Summary, concept extraction, and critique happen in the agent's reasoning step
-- Simpler, faster, fewer token round-trips
-
 ## Project Structure
 
-```
+```text
 reader-agent/
-├── app.py                    # Streamlit UI
+├── app.py
 ├── src/reader_agent/
-│   ├── __init__.py
-│   ├── __main__.py           # CLI entry
-│   ├── graph.py              # ReAct agent + system prompt
-│   └── tools.py              # Skills: parse_pdf, parse_epub, extract_references, save_notes, batch_process
+│   ├── __main__.py
+│   ├── ai_backend.py    # AI backend adapter (direct/fipai)
+│   ├── service.py       # business orchestration
+│   ├── tools.py         # parser and note persistence
+│   └── graph.py         # legacy react agent (optional)
 ├── pyproject.toml
-├── .env.example
-├── .streamlit/
-│   └── config.toml          # Dark theme
-└── output/                  # Generated notes & uploaded files
+└── output/
 ```
-
-## Note Format
-
-Generated notes follow this structure:
-
-```markdown
-# {Title} 阅读笔记
-
-## 一句话总结
-...
-
-## 章节要点
-### 第1章 ...
-- ...
-
-## 核心概念
-| 术语 | 解释 |
-|------|------|
-| ... | ... |
-
-## 概念关系图
-```mermaid
-graph LR
-    A[...] --> B[...]
-```
-
-## 引用图谱
-| 作者 | 年份 | 题目 | 来源 |
-|------|------|------|------|
-| ... | ... | ... | ... |
-
-## 批判性思考
-1. ...
-
-## 原文摘录
-- "..." (p.x)
-```
-
-## Roadmap
-
-- [x] PDF parsing
-- [x] EPUB parsing
-- [x] Structured note generation
-- [x] Concept relationship maps (Mermaid)
-- [x] Citation extraction
-- [x] Streamlit UI with reading mode
-- [x] Batch processing
-- [ ] RAG Q&A over notes
-- [ ] Anki card export
-- [ ] Obsidian sync
-- [ ] Full-text search across notes
-
-## Contributing
-
-1. Fork the repo
-2. Create a feature branch
-3. Make changes
-4. Open a PR
-
-## License
-
-MIT

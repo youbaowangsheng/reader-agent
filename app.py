@@ -1,209 +1,222 @@
-"""Streamlit UI for Reader Agent — Reading-first design."""
+"""Streamlit UI for Reader Agent."""
 import os
 import re
 import sys
 import time
+import hashlib
 from pathlib import Path
+from typing import Dict, List, Tuple
 
-import markdown as md_lib
 import streamlit as st
-from streamlit.components.v1 import html
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from reader_agent.graph import build_agent
-from reader_agent.tools import parse_pdf, parse_epub
+from reader_agent.service import (
+    answer_question_with_rag,
+    clear_recent_memory,
+    find_note_file,
+    generate_note_for_file,
+    get_recent_memory,
+    get_index_for_note,
+    suggest_term_questions,
+)
 
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "./output"))
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-st.set_page_config(page_title="Reader Agent", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Reader Agent", layout="wide", initial_sidebar_state="expanded")
 
-# ── Session State ───────────────────────────────
+
 def init_state():
     defaults = {
         "selected_file": None,
         "current_view": "welcome",
-        "font_size": 18,
-        "line_height": 1.8,
-        "content_width": 800,
+        "font_size": 17,
+        "line_height": 1.7,
+        "chat_by_note": {},
+        "selected_section_idx": 0,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
 
-init_state()
 
-# ── Helpers ───────────────────────────────
-def find_note_file(source_path: Path):
-    stem = source_path.stem
-    for m in sorted(OUTPUT_DIR.glob("*_阅读笔记.md")):
-        if stem in m.name:
-            return m
-    return None
-
-
-def parse_toc(markdown_text: str):
-    """Extract headings from markdown for TOC."""
-    toc = []
-    for line in markdown_text.splitlines():
+def parse_headings(markdown_text: str) -> List[Tuple[int, str, int]]:
+    items: List[Tuple[int, str, int]] = []
+    for idx, line in enumerate(markdown_text.splitlines()):
         m = re.match(r"^(#{1,3})\s+(.+)$", line)
         if m:
-            level = len(m.group(1))
-            title = m.group(2).strip()
-            anchor = re.sub(r"[^\w\u4e00-\u9fff-]", "", title.replace(" ", "-"))[:40]
-            toc.append({"level": level, "title": title, "anchor": anchor})
-    return toc
+            items.append((len(m.group(1)), m.group(2).strip(), idx))
+    return items
 
 
-def markdown_to_html(markdown_text: str, font_size: int = 18, line_height: float = 1.8) -> str:
-    """Convert markdown to styled HTML with anchor IDs."""
-    # Add anchor IDs to headings before converting
-    def heading_anchor(match):
-        hashes = match.group(1)
-        title = match.group(2).strip()
-        anchor = re.sub(r"[^\w\u4e00-\u9fff-]", "", title.replace(" ", "-"))[:40]
-        return f'{hashes} <span id="{anchor}">{title}</span>'
+def split_by_headings(markdown_text: str) -> List[Dict[str, str]]:
+    lines = markdown_text.splitlines()
+    headings = parse_headings(markdown_text)
+    if not headings:
+        return [{"title": "全文", "content": markdown_text}]
 
-    anchored = re.sub(r"^(#{1,3})\s+(.+)$", heading_anchor, markdown_text, flags=re.M)
-
-    # Convert to HTML
-    html_body = md_lib.markdown(anchored, extensions=["tables", "fenced_code"])
-
-    # Wrap in custom CSS
-    css = f"""
-    <style>
-        .reader-content {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-            font-size: {font_size}px;
-            line-height: {line_height};
-            color: #e0e0e0;
-            max-width: {st.session_state.content_width}px;
-            margin: 0 auto;
-            padding: 20px 40px;
-        }}
-        .reader-content h1, .reader-content h2, .reader-content h3 {{
-            color: #fff;
-            font-weight: 600;
-            margin-top: 2em;
-            margin-bottom: 0.8em;
-            scroll-margin-top: 80px;
-        }}
-        .reader-content h1 {{ font-size: {font_size * 1.6}px; border-bottom: 2px solid #333; padding-bottom: 0.3em; }}
-        .reader-content h2 {{ font-size: {font_size * 1.3}px; border-bottom: 1px solid #333; padding-bottom: 0.2em; }}
-        .reader-content h3 {{ font-size: {font_size * 1.1}px; }}
-        .reader-content p {{ margin-bottom: 1.2em; text-align: justify; }}
-        .reader-content blockquote {{
-            border-left: 4px solid #4CAF50;
-            margin: 1.5em 0;
-            padding: 0.5em 1em;
-            background: #1a1d24;
-            color: #b0b0b0;
-        }}
-        .reader-content table {{
-            border-collapse: collapse;
-            width: 100%;
-            margin: 1.5em 0;
-            font-size: {font_size * 0.9}px;
-        }}
-        .reader-content th, .reader-content td {{
-            border: 1px solid #333;
-            padding: 8px 12px;
-            text-align: left;
-        }}
-        .reader-content th {{
-            background: #1a1d24;
-            font-weight: 600;
-        }}
-        .reader-content tr:nth-child(even) {{ background: #15171d; }}
-        .reader-content code {{
-            background: #2a2d35;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: "SF Mono", Monaco, monospace;
-            font-size: {font_size * 0.85}px;
-        }}
-        .reader-content pre {{
-            background: #1a1d24;
-            padding: 16px;
-            border-radius: 8px;
-            overflow-x: auto;
-            margin: 1.5em 0;
-        }}
-        .reader-content pre code {{
-            background: transparent;
-            padding: 0;
-        }}
-        .reader-content ul, .reader-content ol {{
-            margin-bottom: 1.2em;
-            padding-left: 1.5em;
-        }}
-        .reader-content li {{ margin-bottom: 0.5em; }}
-        .reader-content hr {{
-            border: none;
-            border-top: 1px solid #333;
-            margin: 2em 0;
-        }}
-        .reader-content a {{
-            color: #4CAF50;
-            text-decoration: none;
-        }}
-        .reader-content a:hover {{
-            text-decoration: underline;
-        }}
-        /* Scrollbar */
-        ::-webkit-scrollbar {{ width: 8px; }}
-        ::-webkit-scrollbar-track {{ background: #0e1117; }}
-        ::-webkit-scrollbar-thumb {{ background: #333; border-radius: 4px; }}
-        ::-webkit-scrollbar-thumb:hover {{ background: #555; }}
-    </style>
-    <div class="reader-content">
-        {html_body}
-    </div>
-    """
-    return css
+    sections: List[Dict[str, str]] = []
+    for i, (_, title, start) in enumerate(headings):
+        end = headings[i + 1][2] if i + 1 < len(headings) else len(lines)
+        content = "\n".join(lines[start:end]).strip()
+        sections.append({"title": title, "content": content})
+    return sections
 
 
-def render_reader(content: str):
-    """Render note content as a reader view."""
-    st.markdown("---")
+def ensure_chat_slot(note_key: str):
+    if note_key not in st.session_state.chat_by_note:
+        st.session_state.chat_by_note[note_key] = []
 
-    # Toolbar
-    cols = st.columns([1, 1, 1, 4])
-    with cols[0]:
-        st.session_state.font_size = st.slider("🔍 字号", 12, 28, st.session_state.font_size, key="fs")
-    with cols[1]:
-        st.session_state.line_height = st.slider("⏫ 行距", 1.2, 2.5, st.session_state.line_height, 0.1, key="lh")
-    with cols[2]:
-        st.session_state.content_width = st.slider("↔️ 宽度", 600, 1200, st.session_state.content_width, 50, key="cw")
 
-    # TOC + Content
-    toc = parse_toc(content)
-    if toc:
-        # Build TOC HTML
-        toc_html = '<div style="background:#1a1d24;padding:16px;border-radius:8px;margin-bottom:20px;">'
-        toc_html += '<h4 style="margin:0 0 12px 0;color:#4CAF50;">📑 目录</h4>'
-        for item in toc:
-            indent = (item["level"] - 1) * 20
-            toc_html += f'<div style="margin-left:{indent}px;margin-bottom:6px;">'
-            toc_html += f'<a href="#{item["anchor"]}" style="color:#b0b0b0;text-decoration:none;font-size:14px;">{item["title"]}</a>'
-            toc_html += '</div>'
-        toc_html += '</div>'
-        html(toc_html, height=min(200 + len(toc) * 25, 400), scrolling=True)
+def render_answer(answer: Dict):
+    st.markdown("### 回答")
+    st.write(answer.get("answer", ""))
+    facts = answer.get("facts", [])
+    if facts:
+        st.markdown("### 事实卡片")
+        for i, f in enumerate(facts, start=1):
+            claim = f.get("claim", "")
+            conf = f.get("confidence", 0.0)
+            evidence = f.get("evidence", "")
+            st.markdown(f"{i}. **{claim}**")
+            st.caption(f"置信度: {conf} | 证据: {evidence}")
+    citations = answer.get("citations", [])
+    if citations:
+        st.markdown("### 引用依据")
+        for i, c in enumerate(citations, start=1):
+            heading = c.get("heading", "")
+            page = c.get("page_range", "")
+            chunk_id = c.get("chunk_id", "")
+            quote = c.get("quote", "")
+            st.markdown(f"{i}. `{chunk_id}` | {heading} | {page}")
+            if quote:
+                st.caption(quote)
+    conflicts = answer.get("fact_conflicts", [])
+    if conflicts:
+        st.error("检测到与历史事实卡片可能冲突的结论，请重点复核引用。")
+        for c in conflicts:
+            st.caption(f"新结论: {c.get('new_claim', '')}")
+            st.caption(f"历史结论: {c.get('old_claim', '')}")
 
-    # Main content
-    html_content = markdown_to_html(
-        content,
-        font_size=st.session_state.font_size,
-        line_height=st.session_state.line_height,
+
+def add_chat_turn(note_key: str, role: str, content: str, answer: Dict | None = None):
+    ensure_chat_slot(note_key)
+    row = {"role": role, "content": content}
+    if answer is not None:
+        row["answer"] = answer
+    st.session_state.chat_by_note[note_key].append(row)
+
+
+def ask_and_render(note_key: str, question: str, index_data: Dict, status_slot):
+    chat_history = [
+        {"role": m["role"], "content": m["content"]}
+        for m in st.session_state.chat_by_note.get(note_key, [])
+        if "content" in m and "role" in m
+    ][-10:]
+
+    with status_slot:
+        with st.spinner("检索中并生成回答..."):
+            result = answer_question_with_rag(question=question, index_data=index_data, chat_history=chat_history, top_k=5)
+    add_chat_turn(note_key, "user", question)
+    add_chat_turn(note_key, "assistant", result.get("answer", ""), answer=result)
+    render_answer(result)
+
+
+def render_reader(note_path: Path, note_text: str):
+    st.markdown(
+        f"""
+<style>
+div[data-testid="stMarkdownContainer"] p {{
+  font-size: {st.session_state.font_size}px;
+  line-height: {st.session_state.line_height};
+}}
+</style>
+""",
+        unsafe_allow_html=True,
     )
-    html(html_content, height=800, scrolling=True)
+
+    sections = split_by_headings(note_text)
+    headings = [s["title"] for s in sections]
+    st.session_state.selected_section_idx = min(st.session_state.selected_section_idx, len(headings) - 1)
+
+    top_cols = st.columns([1, 1, 3])
+    with top_cols[0]:
+        st.session_state.font_size = st.slider("字号", 12, 28, st.session_state.font_size, key="reader_font")
+    with top_cols[1]:
+        st.session_state.line_height = st.slider("行距", 1.2, 2.4, st.session_state.line_height, 0.1, key="reader_lh")
+
+    body_cols = st.columns([2, 1])
+
+    with body_cols[0]:
+        idx = st.selectbox("章节导航", range(len(headings)), index=st.session_state.selected_section_idx, format_func=lambda i: headings[i])
+        st.session_state.selected_section_idx = idx
+        st.markdown("---")
+        st.markdown(sections[idx]["content"])
+
+    with body_cols[1]:
+        st.subheader("论文问答")
+        index_data = get_index_for_note(note_path)
+        note_key = str(note_path.resolve())
+        note_widget_key = hashlib.md5(note_key.encode("utf-8")).hexdigest()[:12]
+        ensure_chat_slot(note_key)
+
+        if not index_data:
+            st.warning("该笔记未找到索引，无法进行引用式问答。请重新处理对应源文件。")
+            return
+
+        status_slot = st.empty()
+        recent_memory = get_recent_memory(index_data, limit=4)
+        st.markdown("#### 会话事实记忆")
+        if recent_memory:
+            for i, m in enumerate(recent_memory, start=1):
+                st.markdown(f"{i}. **{m.get('claim', '')}**")
+                st.caption(f"置信度: {m.get('confidence', 0.0)} | 证据: {m.get('evidence', '')}")
+                citations = m.get("citations", [])
+                if citations:
+                    c = citations[0]
+                    st.caption(f"引用: {c.get('chunk_id', '')} | {c.get('heading', '')} | {c.get('page_range', '')}")
+            if st.button("清空记忆", key=f"clear_mem_{note_widget_key}"):
+                clear_recent_memory(index_data)
+                st.rerun()
+        else:
+            st.caption("暂无记忆")
+
+        question = st.text_area("提问", placeholder="例如：这篇论文的方法和基线相比改进点是什么？", key=f"q_{note_widget_key}")
+        if st.button("发送问题", key=f"ask_{note_widget_key}") and question.strip():
+            ask_and_render(note_key, question.strip(), index_data, status_slot)
+
+        st.markdown("#### 选中段落提问")
+        selected_para = st.text_area(
+            "粘贴你选中的段落",
+            placeholder="把你正在读的段落粘贴到这里，然后点击提问",
+            key=f"sel_{note_widget_key}",
+            height=120,
+        )
+        if st.button("基于段落提问", key=f"ask_sel_{note_widget_key}") and selected_para.strip():
+            ask_and_render(note_key, f"请解释这段内容并联系全文：\n{selected_para.strip()}", index_data, status_slot)
+
+        st.markdown("#### 术语追问")
+        term_prompts = suggest_term_questions(note_text)
+        if term_prompts:
+            selected_prompt = st.selectbox("选择术语问题", term_prompts, key=f"term_{note_widget_key}")
+            if st.button("提问术语", key=f"ask_term_{note_widget_key}"):
+                ask_and_render(note_key, selected_prompt, index_data, status_slot)
+
+        if st.session_state.chat_by_note.get(note_key):
+            st.markdown("#### 最近对话")
+            for msg in st.session_state.chat_by_note[note_key][-6:]:
+                role = "你" if msg["role"] == "user" else "AI"
+                st.markdown(f"**{role}**: {msg['content']}")
+                if msg["role"] == "assistant" and msg.get("answer", {}).get("citations"):
+                    c = msg["answer"]["citations"][0]
+                    st.caption(f"引用: {c.get('chunk_id', '')} | {c.get('heading', '')} | {c.get('page_range', '')}")
 
 
-# ── Sidebar ──────────────────────────────────────────
+init_state()
+
 with st.sidebar:
-    st.title("📚 Reader Agent")
-
+    st.title("Reader Agent")
     uploaded = st.file_uploader("上传 PDF / EPUB", type=["pdf", "epub"], accept_multiple_files=True)
     if uploaded:
         for f in uploaded:
@@ -213,135 +226,85 @@ with st.sidebar:
                 st.success(f"已上传: {f.name}")
 
     st.divider()
-    st.subheader("📂 文件")
+    st.subheader("文件")
+    source_files = sorted(OUTPUT_DIR.glob("*.pdf")) + sorted(OUTPUT_DIR.glob("*.epub"))
+    note_files = sorted(OUTPUT_DIR.glob("*_阅读笔记.md"))
 
-    pdf_epubs = sorted(OUTPUT_DIR.glob("*.pdf")) + sorted(OUTPUT_DIR.glob("*.epub"))
-    md_files = sorted(OUTPUT_DIR.glob("*_阅读笔记.md"))
-    processed_names = {m.name.replace("_阅读笔记.md", "") for m in md_files}
-
-    for p in pdf_epubs:
-        name = p.stem
-        done = name in processed_names or any(name in m.name for m in md_files)
+    for p in source_files:
+        done = find_note_file(p) is not None
         icon = "✅" if done else "⬜"
-        if st.button(f"{icon} {p.name}", key=f"sb_{p.name}"):
+        if st.button(f"{icon} {p.name}", key=f"src_{p.name}"):
             st.session_state.selected_file = str(p)
             st.session_state.current_view = "file"
             st.rerun()
 
     st.divider()
-    # Quick access to existing notes
-    if md_files:
-        st.subheader("📖 已读笔记")
-        for m in md_files:
-            display = m.name.replace("_阅读笔记.md", "")
-            if st.button(f"📖 {display[:30]}", key=f"note_{m.name}"):
+    if note_files:
+        st.subheader("笔记")
+        for m in note_files:
+            if st.button(f"📖 {m.name.replace('_阅读笔记.md', '')[:28]}", key=f"note_{m.name}"):
                 st.session_state.selected_file = str(m)
                 st.session_state.current_view = "reader"
                 st.rerun()
 
 
-# ── Main Content ──────────────────────────────────────────
-
 view = st.session_state.current_view
 selected_path = st.session_state.selected_file
 
-# ====== Welcome Screen ======
 if view == "welcome" or not selected_path:
-    st.header("👋 Reader Agent")
-    st.markdown("""
-    **AI-powered reading assistant** — 上传 PDF/EPUB，自动生成结构化阅读笔记，直接在浏览器中舒适阅读。
+    st.header("Reader Agent")
+    st.markdown(
+        """
+上传 PDF/EPUB -> 生成阅读笔记 -> 在右侧对话面板进行“可引用问答”。
 
-    ### 快速开始
-    1. 左侧上传 PDF 或 EPUB 文件
-    2. 点击文件名
-    3. 点击 "🚀 开始阅读并生成笔记"
-    4. 等待完成，自动进入阅读模式
-    """)
-
-    if md_files:
-        st.divider()
-        st.subheader("📑 最近的笔记")
-        cols = st.columns(min(len(md_files), 3))
-        for i, m in enumerate(sorted(md_files, key=lambda x: x.stat().st_mtime, reverse=True)[:6]):
-            with cols[i % 3]:
-                display = m.name.replace("_阅读笔记.md", "")
-                if st.button(f"📖 {display[:25]}", key=f"recent_{i}"):
-                    st.session_state.selected_file = str(m)
-                    st.session_state.current_view = "reader"
-                    st.rerun()
+第一版能力：
+- RAG 检索（chunk + embedding + vector store）
+- 回答必须绑定引用 chunk/page/heading
+- 选中段落提问
+- 术语追问
+"""
+    )
     st.stop()
 
 
-# ====== Reader View (direct note) ======
 if view == "reader" and selected_path and Path(selected_path).suffix == ".md":
     note_path = Path(selected_path)
     st.header(f"📖 {note_path.name.replace('_阅读笔记.md', '')}")
-    with open(note_path, encoding="utf-8") as f:
-        render_reader(f.read())
+    render_reader(note_path, note_path.read_text(encoding="utf-8"))
     st.stop()
 
 
-# ====== File View (source document) ======
 file_path = Path(selected_path)
 st.header(f"📄 {file_path.name}")
-
 note_file = find_note_file(file_path)
 
-# --- Already done -> go to reader ---
 if note_file:
-    st.success("✅ 笔记已生成 — 正在进入阅读模式...")
+    st.success("笔记已存在，进入阅读模式。")
     st.session_state.selected_file = str(note_file)
     st.session_state.current_view = "reader"
-    time.sleep(0.5)
+    time.sleep(0.2)
     st.rerun()
     st.stop()
 
-# --- Processing ---
 if view == "processing":
-    st.button("🚀 正在处理中...", type="primary", disabled=True)
     bar = st.progress(0)
     status = st.empty()
-
     try:
-        status.info("📄 解析文档结构...")
-        bar.progress(15)
-        if file_path.suffix.lower() == ".pdf":
-            parse_pdf.func(str(file_path))
-        else:
-            parse_epub.func(str(file_path))
-
-        status.info("🧠 初始化 Agent...")
+        status.info("解析文档并构建索引...")
         bar.progress(35)
-        agent = build_agent()
-
-        status.info("✍️ Agent 正在分析并生成笔记（这可能需要几分钟）...")
-        bar.progress(60)
-        agent.invoke({
-            "messages": [{"role": "user", "content": f"请阅读并生成笔记：{file_path}"}]
-        })
-
-        status.info("💾 保存笔记...")
-        bar.progress(90)
+        result = generate_note_for_file(file_path)
+        bar.progress(100)
+        status.success("完成，进入阅读模式。")
+        st.session_state.selected_file = str(result.note_path)
+        st.session_state.current_view = "reader"
         time.sleep(0.3)
-
-        note_file = find_note_file(file_path)
-        if note_file:
-            bar.progress(100)
-            status.success("✅ 完成！正在进入阅读模式...")
-            st.session_state.selected_file = str(note_file)
-            st.session_state.current_view = "reader"
-            time.sleep(0.5)
-            st.rerun()
-        else:
-            status.warning("⚠️ 未找到笔记，请刷新页面。")
+        st.rerun()
     except Exception as e:
-        status.error(f"❌ 失败: {e}")
+        status.error(f"处理失败: {e}")
         st.exception(e)
     st.stop()
 
-
-# --- Ready to start ---
-st.warning("⏳ 尚未生成笔记")
-if st.button("🚀 开始阅读并生成笔记", type="primary"):
+st.warning("尚未生成笔记")
+if st.button("开始处理", type="primary"):
     st.session_state.current_view = "processing"
     st.rerun()
