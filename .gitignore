@@ -27,3 +27,10 @@ Thumbs.db
 
 # Streamlit
 .streamlit/secrets.toml
+
+# pytest
+.pytest_cache/
+# design screenshots (keep HTML prototypes)
+design/*.png
+# Uploaded paper files (runtime data)
+backend/storage/

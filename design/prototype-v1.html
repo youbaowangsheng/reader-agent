@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reader · 英文论文阅读助手 — 界面原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#ffffff;--bg-subtle:#fafafa;--bg-hover:#f4f4f4;
+    --text:#171717;--text-2:#4d4d4d;--text-3:#666666;--text-4:#8a8a8a;
+    --border:0 0 0 1px rgba(0,0,0,0.08);--border-strong:#ebebeb;
+    --accent:#5e6ad2;--accent-hover:#4e58c0;--accent-bg:#eef0fb;--accent-soft:#f5f6fd;
+    --green:#27a644;
+    --serif:'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono:ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--sans);color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:14px;overflow:hidden}
+  button{font-family:inherit;cursor:pointer}
+  ::selection{background:rgba(94,106,210,0.18)}
+  .topbar{height:52px;display:flex;align-items:center;gap:12px;padding:0 16px;background:var(--bg);border-bottom:1px solid var(--border-strong);position:relative;z-index:10}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;letter-spacing:-0.2px;white-space:nowrap}
+  .brand .logo{width:22px;height:22px;border-radius:6px;background:var(--accent);display:grid;place-items:center;color:#fff;font-size:12px;font-weight:600}
+  .brand .tag{font-size:11px;color:var(--text-4);font-weight:500;padding:1px 6px;border-radius:4px;box-shadow:var(--border);margin-left:2px}
+  .doc-meta{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+  .doc-meta .title{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .doc-meta .authors{font-size:11px;color:var(--text-4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .top-actions{display:flex;align-items:center;gap:8px}
+  .search{display:flex;align-items:center;gap:6px;height:32px;padding:0 10px;background:var(--bg-subtle);border-radius:6px;box-shadow:var(--border);color:var(--text-4);font-size:13px;min-width:160px}
+  .search kbd{font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:4px;background:#fff;box-shadow:var(--border);color:var(--text-3)}
+  .btn{height:32px;padding:0 12px;border-radius:6px;font-size:13px;font-weight:500;border:none;display:inline-flex;align-items:center;gap:6px;transition:background .12s}
+  .btn-ghost{background:#fff;box-shadow:var(--border);color:var(--text-2)}
+  .btn-ghost:hover{background:var(--bg-hover)}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{background:var(--accent-hover)}
+  .avatar{width:28px;height:28px;border-radius:50%;background:#e8e8e8;display:grid;place-items:center;font-size:12px;color:var(--text-3);font-weight:500}
+  .layout{display:grid;grid-template-columns:264px 1fr 360px;height:calc(100vh - 52px)}
+  .sidebar{background:var(--bg-subtle);border-right:1px solid var(--border-strong);overflow-y:auto;padding:14px 10px}
+  .sb-group{margin-bottom:22px}
+  .sb-label{font-size:11px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;color:var(--text-4);padding:0 8px;margin-bottom:6px}
+  .sb-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:5px 8px;border-radius:6px;font-size:13px;color:var(--text-2);background:transparent;border:none;transition:background .1s;line-height:1.35}
+  .sb-item:hover{background:var(--bg-hover)}
+  .sb-item .num{font-family:var(--mono);font-size:11px;color:var(--text-4);width:16px;flex-shrink:0;text-align:right}
+  .sb-item.active{background:var(--accent-bg);color:var(--accent-hover);font-weight:500}
+  .sb-item.active .num{color:var(--accent)}
+  .sb-item.child{padding-left:34px;font-size:12.5px}
+  .sb-item.child .num{display:none}
+  .annotation-item{display:flex;gap:8px;align-items:flex-start;padding:7px 8px;border-radius:6px;transition:background .1s}
+  .annotation-item:hover{background:var(--bg-hover)}
+  .annotation-item .swatch{width:3px;height:14px;border-radius:2px;flex-shrink:0;margin-top:2px}
+  .annotation-item .txt{font-size:12.5px;color:var(--text-2);line-height:1.4}
+  .annotation-item .meta{font-size:11px;color:var(--text-4);margin-top:2px}
+  .reader{overflow-y:auto;background:var(--bg);position:relative}
+  .paper{max-width:720px;margin:0 auto;padding:56px 48px 120px;font-family:var(--serif);color:var(--text)}
+  .paper h1{font-family:var(--serif);font-size:30px;font-weight:700;letter-spacing:-0.4px;line-height:1.2;margin-bottom:10px}
+  .paper .byline{font-size:13.5px;color:var(--text-3);margin-bottom:4px;line-height:1.6}
+  .paper .affil{font-size:12.5px;color:var(--text-4);margin-bottom:28px}
+  .paper .abstract-label{font-size:12px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;color:var(--text-4);margin-bottom:8px}
+  .paper .abstract{font-size:16px;line-height:1.75;color:var(--text-2);padding:16px 20px;border-radius:8px;background:var(--bg-subtle);box-shadow:var(--border);margin-bottom:36px}
+  .paper section{margin-bottom:34px}
+  .paper h2{font-family:var(--serif);font-size:20px;font-weight:700;letter-spacing:-0.2px;margin-bottom:12px;scroll-margin-top:20px}
+  .paper h2 .secno{font-family:var(--mono);font-weight:500;color:var(--text-4);margin-right:8px;font-size:16px}
+  .paper h3{font-family:var(--serif);font-size:16px;font-weight:600;margin:20px 0 10px;scroll-margin-top:20px}
+  .paper p{font-size:16.5px;line-height:1.78;color:var(--text);margin-bottom:16px}
+  .paper .eq{font-family:var(--mono);font-size:14.5px;text-align:center;margin:20px 0;color:var(--text-2)}
+  .term{background:var(--accent-soft);color:var(--accent-hover);border-bottom:1px dashed var(--accent);padding:0 1px;border-radius:2px;cursor:pointer;font-weight:600;transition:background .1s}
+  .term:hover{background:var(--accent-bg)}
+  .term.selected{background:var(--accent-bg);box-shadow:0 0 0 1px var(--accent)}
+  mark.hl{background:#fef3c7;border-radius:2px;padding:0 2px;cursor:pointer}
+  mark.hl:hover{background:#fde68a}
+  .ask-inline{display:inline-flex;align-items:center;gap:4px;vertical-align:baseline;margin-left:8px;font-family:var(--sans);font-size:11px;font-weight:500;color:var(--accent);padding:1px 7px;border-radius:12px;background:var(--accent-soft);border:1px solid transparent;opacity:0;transition:opacity .12s}
+  p:hover .ask-inline{opacity:1}
+  .assistant{border-left:1px solid var(--border-strong);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+  .asst-head{padding:14px 16px 12px;border-bottom:1px solid var(--border-strong)}
+  .asst-head .t{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .asst-head .t .dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+  .asst-head .sub{font-size:11.5px;color:var(--text-4);margin-top:3px}
+  .term-card{margin:12px 12px 0;padding:12px 14px;background:var(--accent-soft);border-radius:8px;box-shadow:var(--border)}
+  .term-card .label{font-size:11px;font-weight:600;letter-spacing:0.3px;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+  .term-card .term-name{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px}
+  .term-card .term-def{font-size:13px;line-height:1.6;color:var(--text-2)}
+  .chat{flex:1;overflow-y:auto;padding:16px 12px;display:flex;flex-direction:column;gap:14px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 4px}
+  .chip{font-size:12px;padding:5px 10px;border-radius:14px;background:#fff;box-shadow:var(--border);color:var(--text-2);border:none;transition:background .1s}
+  .chip:hover{background:var(--bg-hover)}
+  .msg{display:flex;flex-direction:column;gap:4px;max-width:92%}
+  .msg .who{font-size:11px;color:var(--text-4);font-weight:500}
+  .msg.user{align-self:flex-end}
+  .msg.user .who{text-align:right}
+  .bubble{font-size:13.5px;line-height:1.6;padding:10px 12px;border-radius:10px}
+  .msg.user .bubble{background:var(--accent);color:#fff;border-bottom-right-radius:3px}
+  .msg.ai .bubble{background:var(--bg-subtle);color:var(--text);box-shadow:var(--border);border-bottom-left-radius:3px}
+  .msg.ai .bubble b{color:var(--text);font-weight:600}
+  .msg.ai .bubble .src{display:block;margin-top:6px;font-size:11px;color:var(--text-4)}
+  .asst-input{padding:12px;border-top:1px solid var(--border-strong)}
+  .input-row{display:flex;gap:8px;align-items:flex-end}
+  .input-row textarea{flex:1;resize:none;border:none;outline:none;font-family:var(--sans);font-size:13.5px;line-height:1.5;background:var(--bg-subtle);border-radius:8px;padding:9px 12px;box-shadow:var(--border);height:40px;color:var(--text)}
+  .input-row textarea:focus{box-shadow:0 0 0 1px var(--accent)}
+  .send-btn{height:40px;width:40px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:16px;display:grid;place-items:center;flex-shrink:0}
+  .send-btn:hover{background:var(--accent-hover)}
+  @media (max-width:1080px){.layout{grid-template-columns:220px 1fr 320px}.paper{padding:40px 32px 100px}}
+  @media (max-width:860px){.assistant{display:none}.layout{grid-template-columns:200px 1fr}}
+  @media (max-width:640px){.sidebar{display:none}.layout{grid-template-columns:1fr}.search{display:none}.doc-meta .authors{display:none}.paper{padding:28px 20px 80px}}
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand"><span class="logo">R</span> Reader <span class="tag">英文论文</span></div>
+    <div class="doc-meta">
+      <div class="title">Attention Is All You Need</div>
+      <div class="authors">Vaswani et al. · NeurIPS 2017 · 15 页 · 已读 62%</div>
+    </div>
+    <div class="top-actions">
+      <div class="search">搜索论文… <kbd>⌘K</kbd></div>
+      <button class="btn btn-ghost">导出笔记</button>
+      <button class="btn btn-primary">上传 PDF</button>
+      <div class="avatar">Y</div>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <aside class="sidebar">
+      <div class="sb-group">
+        <div class="sb-label">目录</div>
+        <button class="sb-item" data-sec="abstract"><span class="num"></span>摘要</button>
+        <button class="sb-item active" data-sec="s1"><span class="num">1</span>Introduction</button>
+        <button class="sb-item" data-sec="s2"><span class="num">2</span>Background</button>
+        <button class="sb-item" data-sec="s3"><span class="num">3</span>Model Architecture</button>
+        <button class="sb-item child" data-sec="s3-1">3.1 Encoder &amp; Decoder</button>
+        <button class="sb-item child" data-sec="s3-2">3.2 Attention</button>
+        <button class="sb-item child" data-sec="s3-3">3.3 Feed-Forward</button>
+        <button class="sb-item child" data-sec="s3-4">3.4 Embeddings</button>
+        <button class="sb-item child" data-sec="s3-5">3.5 Positional Encoding</button>
+        <button class="sb-item" data-sec="s4"><span class="num">4</span>Why Self-Attention</button>
+        <button class="sb-item" data-sec="s5"><span class="num">5</span>Training</button>
+        <button class="sb-item" data-sec="s6"><span class="num">6</span>Results</button>
+        <button class="sb-item" data-sec="s7"><span class="num">7</span>Conclusion</button>
+      </div>
+      <div class="sb-group">
+        <div class="sb-label">我的标注 · 5</div>
+        <div class="annotation-item"><span class="swatch" style="background:#fbbf24"></span><div><div class="txt">"Scaled dot-product attention is much faster..."</div><div class="meta">高亮 · 第 3.2 节</div></div></div>
+        <div class="annotation-item"><span class="swatch" style="background:var(--accent)"></span><div><div class="txt">self-attention — 为什么能并行计算</div><div class="meta">术语 · 第 3.2 节</div></div></div>
+        <div class="annotation-item"><span class="swatch" style="background:#fbbf24"></span><div><div class="txt">"constant number of sequentially executed operations"</div><div class="meta">高亮 · 第 4 节</div></div></div>
+      </div>
+    </aside>
+
+    <main class="reader">
+      <article class="paper" id="paper">
+
+        <h1>Attention Is All You Need</h1>
+        <div class="byline">Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, Illia Polosukhin</div>
+        <div class="affil">Google Brain · Google Research · University of Toronto · NeurIPS 2017</div>
+
+        <div class="abstract-label">摘要</div>
+        <div class="abstract" id="abstract">
+          The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an <span class="term" data-term="attention">attention</span> mechanism. We propose a new simple network architecture, the <span class="term" data-term="transformer">Transformer</span>, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely.
+        </div>
+
+        <section id="s1">
+          <h2><span class="secno">1</span>Introduction</h2>
+          <p>Recurrent neural networks, long short-term memory and gated recurrent neural networks in particular, have been firmly established as state of the art approaches in sequence modeling and transduction problems such as language modeling and machine translation. Numerous efforts have since continued to push the boundaries of recurrent language models and encoder-decoder architectures.</p>
+          <p>Recurrent models typically factor computation along the symbol positions of the input and output sequences. Aligning the positions to steps in computation time, they generate a sequence of hidden states h<sub>t</sub>, as a function of the previous hidden state h<sub>t−1</sub> and the input for position t. This inherently sequential nature precludes parallelization within training examples.</p>
+          <p>In this work we propose the <span class="term" data-term="transformer">Transformer</span>, a model architecture eschewing recurrence and instead relying entirely on an <span class="term" data-term="attention">attention</span> mechanism to draw global dependencies between input and output.<button class="ask-inline">问 AI</button></p>
+        </section>
+
+        <section id="s2">
+          <h2><span class="secno">2</span>Background</h2>
+          <p>The goal of reducing sequential computation also forms the foundation of the Extended Neural GPU, ByteNet and ConvS2S, all of which use convolutional neural networks as basic building blocks, computing hidden representations in parallel for all input and output positions.</p>
+        </section>
+
+        <section id="s3">
+          <h2><span class="secno">3</span>Model Architecture</h2>
+          <p>Most competitive neural sequence transduction models have an encoder-decoder structure. Here, the encoder maps an input sequence of symbol representations to a sequence of continuous representations. Given this, the decoder then generates an output sequence one element at a time.</p>
+          <h3 id="s3-1">3.1 Encoder and Decoder Stacks</h3>
+          <p>The encoder is composed of a stack of N = 6 identical layers. Each layer has two sub-layers: a multi-head <span class="term" data-term="self-attention">self-attention</span> mechanism, and a position-wise fully connected feed-forward network. A residual connection around each of the two sub-layers is employed, followed by layer normalization.</p>
+          <h3 id="s3-2">3.2 Attention</h3>
+          <p>An attention function can be described as mapping a query and a set of key-value pairs to an output, where the query, keys, values, and output are all vectors. The output is computed as a weighted sum of the values, where the weight assigned to each value is computed by a compatibility function of the query with the corresponding key.</p>
+          <p>We call our particular attention <mark class="hl" data-term="scaled-dot">"Scaled Dot-Product Attention"</mark>. The input consists of queries and keys of dimension d<sub>k</sub>, and values of dimension d<sub>v</sub>.</p>
+          <div class="eq">Attention(Q, K, V) = softmax(QKᵀ / √d<sub>k</sub>) V</div>
+          <p>Instead of performing a single attention function, we found it beneficial to linearly project the queries, keys and values h times with different, learned linear projections. We call this <span class="term" data-term="multi-head">multi-head attention</span>.</p>
+          <h3 id="s3-3">3.3 Position-wise Feed-Forward Networks</h3>
+          <p>In addition to attention sub-layers, each of the layers in our encoder and decoder contains a fully connected feed-forward network, applied to each position separately and identically.</p>
+          <h3 id="s3-4">3.4 Embeddings and Softmax</h3>
+          <p>Similarly to other sequence transduction models, we use learned embeddings to convert the input tokens and output tokens to vectors of dimension d<sub>model</sub>.</p>
+          <h3 id="s3-5">3.5 Positional Encoding</h3>
+          <p>Since our model contains no recurrence and no convolution, in order for the model to make use of the order of the sequence, we must inject some information about the relative or absolute position of the tokens. To this end, we add <span class="term" data-term="positional">positional encodings</span> to the input embeddings.</p>
+        </section>
+
+        <section id="s4">
+          <h2><span class="secno">4</span>Why Self-Attention</h2>
+          <p>Self-attention layers connect all positions with a <mark class="hl">constant number of sequentially executed operations</mark>, whereas a recurrent layer requires O(n) sequential operations. In terms of computational complexity, self-attention layers are faster than recurrent layers when the sequence length n is smaller than the representation dimensionality d.</p>
+        </section>
+
+        <section id="s5">
+          <h2><span class="secno">5</span>Training</h2>
+          <p>We trained our models on the standard WMT 2014 English-German dataset and the larger WMT 2014 English-French dataset. We trained on one machine with 8 NVIDIA P100 GPUs.</p>
+        </section>
+
+        <section id="s6">
+          <h2><span class="secno">6</span>Results</h2>
+          <p>On the WMT 2014 English-to-German translation task, the big transformer model outperforms the best previously reported models by more than 2.0 BLEU, establishing a new state-of-the-art BLEU score of 28.4.</p>
+        </section>
+
+        <section id="s7">
+          <h2><span class="secno">7</span>Conclusion</h2>
+          <p>In this work, we presented the Transformer, the first sequence transduction model based entirely on attention, replacing the recurrent layers most commonly used in encoder-decoder architectures with multi-headed self-attention.</p>
+        </section>
+
+      </article>
+    </main>
+
+    <aside class="assistant">
+      <div class="asst-head">
+        <div class="t"><span class="dot"></span> AI 助读</div>
+        <div class="sub">选词提问 · 段落解读 · 术语解释</div>
+      </div>
+      <div class="term-card" id="termCard">
+        <div class="label">术语</div>
+        <div class="term-name" id="termName">self-attention</div>
+        <div class="term-def" id="termDef">自注意力机制。让序列中每个位置都能直接"看"到其它所有位置，从而一次性捕获长距离依赖，不需要像 RNN 那样逐步传递信息。</div>
+      </div>
+      <div class="chat" id="chat">
+        <div class="chips">
+          <button class="chip" data-q="解释这段话">解释这段话</button>
+          <button class="chip" data-q="翻译成中文">翻译成中文</button>
+          <button class="chip" data-q="总结本节">总结本节</button>
+          <button class="chip" data-q="它和 RNN 的区别？">它和 RNN 的区别？</button>
+        </div>
+        <div class="msg user"><div class="who">你</div><div class="bubble">这段 Introduction 在讲什么？</div></div>
+        <div class="msg ai">
+          <div class="who">AI 助读</div>
+          <div class="bubble"><b>这段的核心：</b>作者先指出 RNN/LSTM 是序列建模的主流，但它们的<u>串行</u>计算方式限制了训练并行化——这是它最大的瓶颈。于是作者提出 Transformer，完全抛弃循环结构，改用 <b>attention</b> 来建立输入输出之间的全局依赖，从而能并行训练。<span class="src">依据 · 第 1 节第 3 段</span></div>
+        </div>
+      </div>
+      <div class="asst-input">
+        <div class="input-row">
+          <textarea placeholder="针对当前段落提问…（Enter 发送）"></textarea>
+          <button class="send-btn" title="发送">→</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+<script>
+  var TERMS = {
+    'attention':['attention','注意力机制。通过 query / key / value 三组向量，动态计算每个位置对其它位置应该"关注"多少权重。'],
+    'transformer':['Transformer','完全基于注意力机制的序列模型，抛弃了 RNN 的循环与 CNN 的卷积，是 GPT、BERT 等模型的共同底座。'],
+    'self-attention':['self-attention','自注意力机制。序列中每个位置都能直接"看"到其它所有位置，一次性捕获长距离依赖。'],
+    'multi-head':['multi-head attention','多头注意力。把 Q/K/V 投影到 h 个不同子空间并行计算注意力，再拼接，让模型同时关注不同维度的关系。'],
+    'positional':['positional encoding','位置编码。因为模型没有循环/卷积，无法感知顺序，所以给输入向量叠加位置信息。'],
+    'scaled-dot':['Scaled Dot-Product Attention','缩放点积注意力。计算 Q 与 K 的点积，再除以 √dₖ 缩放防止梯度消失，最后 softmax 得到权重。']
+  };
+  var termName = document.getElementById('termName');
+  var termDef  = document.getElementById('termDef');
+  document.querySelectorAll('.term, mark.hl').forEach(function(el){
+    el.addEventListener('click', function(){
+      document.querySelectorAll('.term.selected, mark.hl').forEach(function(x){x.classList.remove('selected')});
+      el.classList.add('selected');
+      var t = TERMS[el.getAttribute('data-term')];
+      if(t){ termName.textContent = t[0]; termDef.textContent = t[1]; }
+    });
+  });
+  document.querySelectorAll('.sb-item').forEach(function(item){
+    item.addEventListener('click', function(){
+      document.querySelectorAll('.sb-item').forEach(function(x){x.classList.remove('active')});
+      item.classList.add('active');
+      var el = document.getElementById(item.getAttribute('data-sec'));
+      if(el){ document.getElementById('paper').parentElement.scrollTo({top: el.offsetTop - 20, behavior:'smooth'}); }
+    });
+  });
+  document.querySelectorAll('.chip').forEach(function(c){
+    c.addEventListener('click', function(){
+      var chat = document.getElementById('chat');
+      var um = document.createElement('div');
+      um.className = 'msg user';
+      um.innerHTML = '<div class="who">你</div><div class="bubble"></div>';
+      um.querySelector('.bubble').textContent = c.getAttribute('data-q');
+      chat.appendChild(um);
+      chat.scrollTop = chat.scrollHeight;
+    });
+  });
+  var ta = document.querySelector('.input-row textarea');
+  function sendDemo(){
+    var v = ta.value.trim(); if(!v) return;
+    var chat = document.getElementById('chat');
+    var um = document.createElement('div');
+    um.className = 'msg user';
+    um.innerHTML = '<div class="who">你</div><div class="bubble"></div>';
+    um.querySelector('.bubble').textContent = v;
+    chat.appendChild(um);
+    ta.value = ''; chat.scrollTop = chat.scrollHeight;
+  }
+  ta.addEventListener('keydown', function(e){ if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendDemo(); } });
+  document.querySelector('.send-btn').addEventListener('click', sendDemo);
+</script>
+</body>
+</html>
