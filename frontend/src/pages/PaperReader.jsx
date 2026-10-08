@@ -13,7 +13,7 @@ function PaperReader() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pdf'); // 'pdf', 'notes', 'chat'
-  const [sessionId] = useState(() => localStorage.getItem(`session_${id}`) || crypto.randomUUID());
+  const [sessionId] = useState(() => localStorage.getItem(`session_${id}`) || ('sid-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10)));
 
   // Auth check - redirect to login if no token
   useEffect(() => {

@@ -20,13 +20,7 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown."""
     # Startup: create tables if they don't exist
     async with engine.begin() as conn:
-        # Enable pgvector extension for PostgreSQL
-        if conn.dialect.name == "postgresql":
-            try:
-                await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            except Exception:
-                pass  # Extension might already exist
-        # Create tables
+        # Create tables (embedding stored as TEXT column, no pgvector extension needed)
         await conn.run_sync(Base.metadata.create_all)
 
     yield

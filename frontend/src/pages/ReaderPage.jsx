@@ -13,7 +13,8 @@ function ReaderPage({ active }) {
   const [activeAsstTab, setActiveAsstTab] = useState('chat');
   const [conceptIndex, setConceptIndex] = useState(0);
   const [selectedText, setSelectedText] = useState('');
-  const [sessionId] = useState(() => localStorage.getItem('reader_session') || crypto.randomUUID());
+  const [tocCollapsed, setTocCollapsed] = useState(false);
+  const [sessionId] = useState(() => localStorage.getItem('reader_session') || ('sid-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10)));
   const bodyRef = useRef(null);
 
   useEffect(() => {
@@ -88,6 +89,22 @@ function ReaderPage({ active }) {
     }
   };
 
+  // 渲染正文：识别 [IMAGE:url] 为图片、[TABLE] 为等宽表格、其余为段落
+  const renderContent = (content) => {
+    if (!content) return null;
+    const paras = content.split('\n\n');
+    return paras.map((p, i) => {
+      const m = p.match(/^\[IMAGE:(.+?)\]$/);
+      if (m) {
+        return <img key={i} src={m[1]} alt="" className="paper-img" loading="lazy" />;
+      }
+      if (p.startsWith('[TABLE]')) {
+        return <pre key={i} className="paper-table">{p.slice(7)}</pre>;
+      }
+      return <p key={i}>{p}</p>;
+    });
+  };
+
   if (!active) return null;
 
   return (
@@ -103,24 +120,34 @@ function ReaderPage({ active }) {
         <button className="btn-ghost">导出笔记</button>
       </div>
 
-      <div className="reader-layout">
+      <div className={`reader-layout ${tocCollapsed ? 'toc-collapsed' : ''}`}>
         {/* 左栏：目录 */}
-        <aside className="r-sidebar">
-          <div className="r-group">
-            <div className="r-label">目录</div>
-            {sections.length === 0 ? (
-              <div className="empty-state">暂无内容</div>
-            ) : sections.map((s, i) => (
-              <button
-                key={i}
-                className={`r-toc-item ${s.level > 1 ? 'child' : ''}`}
-                onClick={() => scrollToSection(i)}
-              >
-                {s.level <= 1 && <span className="num">{i + 1}</span>}
-                <span>{s.heading}</span>
-              </button>
-            ))}
-          </div>
+        <aside className={`r-sidebar ${tocCollapsed ? 'collapsed' : ''}`}>
+          {tocCollapsed ? (
+            <button className="toc-rail" onClick={() => setTocCollapsed(false)} title="展开目录">
+              <span className="toc-rail-icon">»</span>
+              <span className="toc-rail-label">目录</span>
+            </button>
+          ) : (
+            <div className="r-group">
+              <div className="r-label-row">
+                <div className="r-label">目录</div>
+                <button className="toc-collapse-btn" onClick={() => setTocCollapsed(true)} title="收起目录">«</button>
+              </div>
+              {sections.length === 0 ? (
+                <div className="empty-state">暂无内容</div>
+              ) : sections.map((s, i) => (
+                <button
+                  key={i}
+                  className={`r-toc-item ${s.level > 1 ? 'child' : ''}`}
+                  onClick={() => scrollToSection(i)}
+                >
+                  {s.level <= 1 && <span className="num">{i + 1}</span>}
+                  <span>{s.heading}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </aside>
 
         {/* 中栏：正文 */}
@@ -132,7 +159,7 @@ function ReaderPage({ active }) {
                 {sections.map((s, i) => (
                   <section key={i} id={`sec-${i}`}>
                     {s.level <= 1 ? <h2>{s.heading}</h2> : <h3>{s.heading}</h3>}
-                    <p>{s.content}</p>
+                    {renderContent(s.content)}
                   </section>
                 ))}
               </article>
