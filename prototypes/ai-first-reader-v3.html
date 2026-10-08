@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 导读 · RelAgent</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #faf8f4; --card: #fff; --ink: #1c1a16; --ink-2: #57534e; --ink-3: #8a857d;
+    --accent: #b45309; --accent-soft: #fef3c7; --line: #e7e2d8;
+    --serif: Georgia, "Songti SC", "Noto Serif SC", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --mono: "SF Mono", ui-monospace, Menlo, monospace;
+  }
+  body { font-family: var(--sans); color: var(--ink); background: var(--bg); line-height: 1.65; -webkit-font-smoothing: antialiased; padding-bottom: 80px; }
+  .topbar { position: sticky; top: 0; z-index: 10; background: rgba(250,248,244,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); padding: 14px 24px; display: flex; align-items: center; gap: 14px; }
+  .brand { font-weight: 700; letter-spacing: -.3px; font-size: 15px; }
+  .brand span { color: var(--accent); }
+  .ai-badge { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); color: var(--accent); border: 1px solid #fde68a; border-radius: 999px; padding: 4px 12px; font-size: 12.5px; font-weight: 600; }
+  .ai-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+
+  .paper-head { padding: 34px 0 6px; }
+  .paper-head .tag { font-size: 12px; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .8px; }
+  .paper-head h1 { font-family: var(--serif); font-size: 25px; line-height: 1.3; margin: 8px 0 8px; letter-spacing: -.3px; }
+  .paper-head .meta { color: var(--ink-3); font-size: 13px; }
+
+  .summary { background: linear-gradient(135deg,#1c1a16,#2d2922); color:#f5f1e8; border-radius:14px; padding:22px 24px; margin:18px 0 6px; }
+  .summary .k { font-size:12px; letter-spacing:1px; color:#d6b56a; font-weight:700; text-transform:uppercase; margin-bottom:8px; }
+  .summary p { font-family: var(--serif); font-size:16.5px; line-height:1.7; }
+
+  .section-title { display: flex; align-items: center; gap: 10px; margin: 26px 0 4px; }
+  .section-title .rule { flex: 1; height: 1px; background: var(--line); }
+  .section-title .label { font-size: 13.5px; font-weight: 700; color: var(--ink-2); }
+  .section-title .hint { font-size: 12px; color: var(--ink-3); }
+
+  /* 观点卡片 */
+  .claim { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin: 12px 0; padding: 18px 18px 14px; transition: border-color .15s, box-shadow .15s; }
+  .claim[data-v="agree"] { border-color: #bbf7d0; box-shadow: 0 0 0 1px #bbf7d0; }
+  .claim[data-v="doubt"] { border-color: #fde68a; box-shadow: 0 0 0 1px #fde68a; }
+  .claim[data-v="reject"] { border-color: #fecaca; box-shadow: 0 0 0 1px #fecaca; }
+  .claim-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .claim-no { font-family: var(--mono); font-size: 11px; color: var(--accent); font-weight: 700; }
+  .claim-type { font-size: 11px; padding: 2px 9px; border-radius: 6px; font-weight: 700; letter-spacing: .4px; }
+  .claim-type.method { background: #eff6ff; color: #2563eb; }
+  .claim-type.result { background: #fef3c7; color: #b45309; }
+  .claim-type.risk { background: #fef2f2; color: #dc2626; }
+  .claim-type.value { background: #f0fdf4; color: #16a34a; }
+  .claim-txt { font-size: 15.5px; font-weight: 650; line-height: 1.5; margin-bottom: 6px; }
+  .claim-detail { font-size: 14px; color: var(--ink-2); line-height: 1.7; }
+  .claim-detail b { color: var(--ink); }
+
+  .cite { margin-top: 10px; display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--accent); font-weight: 600; cursor: pointer; border: 1px solid #e5d5b0; background: #fdfaf3; border-radius: 8px; padding: 5px 11px; }
+  .cite:hover { background: var(--accent-soft); }
+  .source { display: none; margin-top: 8px; border-left: 3px solid var(--accent); background: #faf8f3; border-radius: 0 8px 8px 0; padding: 11px 14px; }
+  .source.show { display: block; }
+  .source .src-meta { font-family: var(--mono); font-size: 11px; color: var(--accent); margin-bottom: 5px; font-weight: 600; }
+  .source p { font-family: var(--serif); font-size: 13.5px; color: var(--ink-2); line-height: 1.7; font-style: italic; }
+
+  /* 审核区 */
+  .judge { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+  .judge .jl { font-size: 12px; color: var(--ink-3); font-weight: 600; margin-right: 2px; }
+  .jbtn { font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--ink-2); cursor: pointer; transition: all .12s; }
+  .jbtn:hover { border-color: #d6cfc2; }
+  .jbtn.agree.sel { background: #f0fdf4; border-color: #16a34a; color: #15803d; }
+  .jbtn.doubt.sel { background: #fffbeb; border-color: #d97706; color: #b45309; }
+  .jbtn.reject.sel { background: #fef2f2; border-color: #dc2626; color: #b91c1c; }
+  .verdict-note { margin-left: auto; font-size: 12px; font-weight: 600; display: none; }
+  .claim[data-v="agree"] .verdict-note { display: inline; color: #15803d; }
+  .claim[data-v="doubt"] .verdict-note { display: inline; color: #b45309; }
+  .claim[data-v="reject"] .verdict-note { display: inline; color: #b91c1c; }
+
+  /* 阅读建议 */
+  .read-plan { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; margin: 14px 0; }
+  .read-plan .k { font-size: 13px; letter-spacing: 1px; color: var(--accent); font-weight: 700; margin-bottom: 16px; }
+  .read-plan .sec { margin-bottom: 16px; }
+  .read-plan .sec:last-child { margin-bottom: 0; }
+  .read-plan .sec-h { font-size: 14px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .read-plan .tag { font-size: 11px; padding: 2px 9px; border-radius: 6px; font-weight: 700; letter-spacing: .5px; }
+  .read-plan .tag.careful { background: #fef3c7; color: #b45309; }
+  .read-plan .tag.skim { background: #f1f5f9; color: #475569; }
+  .read-plan ul { list-style: none; }
+  .read-plan li { padding: 5px 0; font-size: 14px; color: var(--ink-2); display: flex; gap: 8px; align-items: baseline; }
+  .read-plan li .ref { font-family: var(--mono); font-size: 12.5px; color: var(--accent); flex-shrink: 0; min-width: 56px; }
+
+  .footnote { text-align: center; color: var(--ink-3); font-size: 12px; margin-top: 26px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">AI<span>导读</span></div>
+    <div class="ai-badge"><span class="dot"></span>AI 已读完 · 5 个观点待你审核</div>
+  </div>
+
+  <div class="wrap">
+    <div class="paper-head">
+      <div class="tag">arXiv 2605.07840</div>
+      <h1>RelAgent: LLM Agents as Data Scientists for Relational Learning</h1>
+      <div class="meta">Anonymous · RelBenchV1 · 33 页</div>
+    </div>
+
+    <div class="summary">
+      <div class="k">AI 的一句话总结</div>
+      <p>这篇论文让 LLM 替人做关系学习的特征工程，真正的增量不是「生成特征」，而是「自省检索」——agent 会检索自己过去的失败、避开重复探索。</p>
+    </div>
+
+    <div class="section-title">
+      <div class="rule"></div>
+      <span class="label">AI 提炼的关键观点</span>
+      <span class="hint">—— 请你判断每条对不对</span>
+      <div class="rule"></div>
+    </div>
+
+    <div class="claim" data-v="">
+      <div class="claim-head">
+        <span class="claim-no">观点 1</span>
+        <span class="claim-type method">方法判断</span>
+      </div>
+      <div class="claim-txt">核心创新是「自省检索」，不是特征工程本身</div>
+      <div class="claim-detail">很多工作都做过「LLM 生成特征」，这不是新东西。这篇真正的增量是让 agent <b>检索自己过去的失败特征、主动避开重复探索</b>——这是它和普通 agent 的分水岭。</div>
+      <span class="cite" onclick="toggleSrc(this,event)">📖 依据 §3</span>
+      <div class="source"><div class="src-meta">§3 Method · 第 4 页</div><p>"The agent maintains a memory of previously generated features, and retrieves from this memory before proposing new candidates, avoiding redundant exploration."</p></div>
+      <div class="judge">
+        <span class="jl">你的判断</span>
+        <button class="jbtn agree" onclick="judge(this,'agree')">✓ 认同</button>
+        <button class="jbtn doubt" onclick="judge(this,'doubt')">? 存疑</button>
+        <button class="jbtn reject" onclick="judge(this,'reject')">✗ 不认同</button>
+        <span class="verdict-note">已记录你的判断</span>
+      </div>
+    </div>
+
+    <div class="claim" data-v="">
+      <div class="claim-head">
+        <span class="claim-no">观点 2</span>
+        <span class="claim-type result">结果判断</span>
+      </div>
+      <div class="claim-txt">「全面 SOTA」要打个折扣</div>
+      <div class="claim-detail">20 个数据集 15 个登顶，听上去漂亮。但我盯着 Table 2 看，<b>部分数据集领先不到 1%</b>，统计上未必显著。「全面超越」有营销成分。</div>
+      <span class="cite" onclick="toggleSrc(this,event)">📖 依据 Table 2</span>
+      <div class="source"><div class="src-meta">Table 2 · §5 Experiments · 第 7 页</div><p>"RELAGENT achieves state-of-the-art results on 15 of 20 datasets in RelBenchV1, with an average relative improvement of about 10%."</p></div>
+      <div class="judge">
+        <span class="jl">你的判断</span>
+        <button class="jbtn agree" onclick="judge(this,'agree')">✓ 认同</button>
+        <button class="jbtn doubt" onclick="judge(this,'doubt')">? 存疑</button>
+        <button class="jbtn reject" onclick="judge(this,'reject')">✗ 不认同</button>
+        <span class="verdict-note">已记录你的判断</span>
+      </div>
+    </div>
+
+    <div class="claim" data-v="">
+      <div class="claim-head">
+        <span class="claim-no">观点 3</span>
+        <span class="claim-type risk">风险判断</span>
+      </div>
+      <div class="claim-txt">可解释性是它离落地最远的地方</div>
+      <div class="claim-detail">LLM 搜出来的特征，人看不懂、审计不了。论文对可解释性<b>只字未提</b>——这是工业界最大的顾虑，也是它从「论文」到「产品」最难跨的一步。</div>
+      <div class="judge">
+        <span class="jl">你的判断</span>
+        <button class="jbtn agree" onclick="judge(this,'agree')">✓ 认同</button>
+        <button class="jbtn doubt" onclick="judge(this,'doubt')">? 存疑</button>
+        <button class="jbtn reject" onclick="judge(this,'reject')">✗ 不认同</button>
+        <span class="verdict-note">已记录你的判断</span>
+      </div>
+    </div>
+
+    <div class="claim" data-v="">
+      <div class="claim-head">
+        <span class="claim-no">观点 4</span>
+        <span class="claim-type value">价值判断</span>
+      </div>
+      <div class="claim-txt">端到端自动化是最大卖点</div>
+      <div class="claim-detail">从原始表到最终预测，全程无人介入。这才是真正打动工业界的点——把关系学习从「专家手艺」变成「可规模化的自动流程」。</div>
+      <span class="cite" onclick="toggleSrc(this,event)">📖 依据 §1</span>
+      <div class="source"><div class="src-meta">§1 Introduction · 第 2 页</div><p>"RelAgent takes raw relational tables as input and produces a trained model end-to-end, without any manual feature engineering or human intervention."</p></div>
+      <div class="judge">
+        <span class="jl">你的判断</span>
+        <button class="jbtn agree" onclick="judge(this,'agree')">✓ 认同</button>
+        <button class="jbtn doubt" onclick="judge(this,'doubt')">? 存疑</button>
+        <button class="jbtn reject" onclick="judge(this,'reject')">✗ 不认同</button>
+        <span class="verdict-note">已记录你的判断</span>
+      </div>
+    </div>
+
+    <div class="claim" data-v="">
+      <div class="claim-head">
+        <span class="claim-no">观点 5</span>
+        <span class="claim-type risk">成本判断</span>
+      </div>
+      <div class="claim-txt">token 成本没算账</div>
+      <div class="claim-detail">agent 迭代搜特征的 token 消耗不小，但论文<b>没有和人工成本做严格对比</b>。省了人力，可能烧了大量算力——这笔账没算清楚。</div>
+      <div class="judge">
+        <span class="jl">你的判断</span>
+        <button class="jbtn agree" onclick="judge(this,'agree')">✓ 认同</button>
+        <button class="jbtn doubt" onclick="judge(this,'doubt')">? 存疑</button>
+        <button class="jbtn reject" onclick="judge(this,'reject')">✗ 不认同</button>
+        <span class="verdict-note">已记录你的判断</span>
+      </div>
+    </div>
+
+    <div class="section-title"><div class="rule"></div><span class="label">读的时候，按这个来</span><div class="rule"></div></div>
+
+    <div class="read-plan">
+      <div class="k">📋 阅读建议</div>
+      <div class="sec">
+        <div class="sec-h"><span class="tag careful">精读</span> 验证上面存疑/不认同的观点</div>
+        <ul>
+          <li><span class="ref">§3</span> Method —— 验证「自省检索」是不是核心</li>
+          <li><span class="ref">Table 2</span> 亲自看领先幅度，判断 SOTA 成色</li>
+        </ul>
+      </div>
+      <div class="sec">
+        <div class="sec-h"><span class="tag skim">略读</span> 扫一眼即可</div>
+        <ul>
+          <li><span class="ref">§2</span> Related Work、<span class="ref">§4</span> 实验设置</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footnote">AI 负责读和总结，你负责判断审核 —— 每一处判断都可回到原文验证</div>
+  </div>
+
+<script>
+  function judge(btn, v) {
+    const card = btn.closest('.claim');
+    card.querySelectorAll('.jbtn').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+    card.dataset.v = v;
+  }
+  function toggleSrc(el, ev) {
+    ev.stopPropagation();
+    el.nextElementSibling.classList.toggle('show');
+  }
+</script>
+</body>
+</html>

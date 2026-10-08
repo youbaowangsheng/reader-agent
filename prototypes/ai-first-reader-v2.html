@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 先读 · RelAgent 阅读轨迹</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #faf8f4;
+    --card: #ffffff;
+    --ink: #1c1a16;
+    --ink-2: #57534e;
+    --ink-3: #8a857d;
+    --accent: #b45309;
+    --accent-soft: #fef3c7;
+    --line: #e7e2d8;
+    --serif: Georgia, "Songti SC", "Noto Serif SC", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --mono: "SF Mono", ui-monospace, Menlo, monospace;
+  }
+  body { font-family: var(--sans); color: var(--ink); background: var(--bg); line-height: 1.65; -webkit-font-smoothing: antialiased; padding-bottom: 80px; }
+  .topbar { position: sticky; top: 0; z-index: 10; background: rgba(250,248,244,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); padding: 14px 24px; display: flex; align-items: center; gap: 14px; }
+  .brand { font-weight: 700; letter-spacing: -.3px; font-size: 15px; }
+  .brand span { color: var(--accent); }
+  .ai-badge { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); color: var(--accent); border: 1px solid #fde68a; border-radius: 999px; padding: 4px 12px; font-size: 12.5px; font-weight: 600; }
+  .ai-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+
+  .paper-head { padding: 34px 0 6px; }
+  .paper-head .tag { font-size: 12px; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .8px; }
+  .paper-head h1 { font-family: var(--serif); font-size: 25px; line-height: 1.3; margin: 8px 0 8px; letter-spacing: -.3px; }
+  .paper-head .meta { color: var(--ink-3); font-size: 13px; }
+
+  .trail-intro { display: flex; align-items: center; gap: 10px; margin: 24px 0 4px; }
+  .trail-intro .rule { flex: 1; height: 1px; background: var(--line); }
+  .trail-intro .label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+
+  /* 阅读轨迹时间线 */
+  .trail { position: relative; margin: 10px 0 0; padding-left: 30px; }
+  .trail::before { content: ""; position: absolute; left: 11px; top: 6px; bottom: 6px; width: 2px; background: var(--line); }
+  .stop { position: relative; margin: 0 0 14px; }
+  .stop .node {
+    position: absolute; left: -30px; top: 6px; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--card); border: 1.5px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 13px;
+  }
+  .stop .node.thought { border-color: #f59e0b; background: #fffbeb; }
+  .stop .node.question { border-color: #dc2626; background: #fef2f2; }
+  .stop .node.fig { border-color: #2563eb; background: #eff6ff; }
+  .stop .node.done { border-color: #16a34a; background: #f0fdf4; }
+  .stop .where { font-family: var(--mono); font-size: 11.5px; color: var(--accent); font-weight: 600; letter-spacing: .3px; margin-bottom: 4px; }
+  .stop .say {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 13px 16px; font-size: 15px; line-height: 1.7;
+  }
+  .stop .say b { color: var(--ink); }
+  .stop .say .hl { background: var(--accent-soft); padding: 0 3px; border-radius: 3px; }
+  .cite { margin-top: 10px; display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--accent); font-weight: 600; cursor: pointer; border: 1px solid #e5d5b0; background: #fdfaf3; border-radius: 8px; padding: 5px 11px; }
+  .cite:hover { background: var(--accent-soft); }
+  .source { display: none; margin-top: 8px; border-left: 3px solid var(--accent); background: #faf8f3; border-radius: 0 8px 8px 0; padding: 11px 14px; }
+  .source.show { display: block; }
+  .source .src-meta { font-family: var(--mono); font-size: 11px; color: var(--accent); margin-bottom: 5px; font-weight: 600; }
+  .source p { font-family: var(--serif); font-size: 13.5px; color: var(--ink-2); line-height: 1.7; font-style: italic; }
+
+  .finale { background: linear-gradient(135deg,#1c1a16,#2d2922); color:#f5f1e8; border-radius:14px; padding:20px 22px; margin:16px 0; }
+  .finale .k { font-size:12px; letter-spacing:1px; color:#d6b56a; font-weight:700; text-transform:uppercase; margin-bottom:8px; }
+  .finale p { font-family: var(--serif); font-size:16px; line-height:1.7; }
+  .finale .stars { font-size:17px; color:#e7c873; letter-spacing:2px; margin-top:8px; }
+
+  .read-plan { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; margin: 14px 0; }
+  .read-plan .k { font-size: 13px; letter-spacing: 1px; color: var(--accent); font-weight: 700; margin-bottom: 16px; }
+  .read-plan .sec { margin-bottom: 16px; }
+  .read-plan .sec:last-child { margin-bottom: 0; }
+  .read-plan .sec-h { font-size: 14px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .read-plan .tag { font-size: 11px; padding: 2px 9px; border-radius: 6px; font-weight: 700; letter-spacing: .5px; }
+  .read-plan .tag.careful { background: #fef3c7; color: #b45309; }
+  .read-plan .tag.skim { background: #f1f5f9; color: #475569; }
+  .read-plan .tag.skip { background: #f1f1ef; color: #a8a29e; }
+  .read-plan .tag.focus { background: #fef2f2; color: #dc2626; }
+  .read-plan ul { list-style: none; }
+  .read-plan li { padding: 5px 0; font-size: 14px; color: var(--ink-2); display: flex; gap: 8px; align-items: baseline; }
+  .read-plan li .ref { font-family: var(--mono); font-size: 12.5px; color: var(--accent); flex-shrink: 0; min-width: 56px; }
+
+  .footnote { text-align:center; color:var(--ink-3); font-size:12px; margin-top:26px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">AI<span>先读</span> · 跟着 AI 读一遍</div>
+    <div class="ai-badge"><span class="dot"></span>AI 刚读完 · 7 处停顿</div>
+  </div>
+
+  <div class="wrap">
+    <div class="paper-head">
+      <div class="tag">arXiv 2605.07840</div>
+      <h1>RelAgent: LLM Agents as Data Scientists for Relational Learning</h1>
+      <div class="meta">Anonymous · RelBenchV1 · 33 页</div>
+    </div>
+
+    <div class="trail-intro"><div class="rule"></div><span class="label">AI 从头读到尾，在这里停下了 7 次</span><div class="rule"></div></div>
+
+    <div class="trail">
+
+      <div class="stop">
+        <div class="node">📍</div>
+        <div class="where">ABSTRACT</div>
+        <div class="say">打开这篇，一句话就能说清它想干嘛：<b>关系数据学习最费人的是特征工程，它想让 LLM 自己搜特征</b>。卖点很直接，不绕弯。</div>
+        <span class="cite" onclick="toggleSrc(this,event)">📖 原文</span>
+        <div class="source"><div class="src-meta">§ Abstract</div><p>"We present RELAGENT, an agentic framework that uses an LLM agent to automate feature engineering and modeling for relational learning."</p></div>
+      </div>
+
+      <div class="stop">
+        <div class="node question">🤔</div>
+        <div class="where">§1 INTRODUCTION · 第 2 段</div>
+        <div class="say">动机我认。但读到这我<b>存疑</b>：作者直接断言<span class="hl">「手工特征工程是当前的主要瓶颈」</span>，这句话没给任何数据或引用支撑。断言下得有点快。</div>
+        <span class="cite" onclick="toggleSrc(this,event)">📖 原文</span>
+        <div class="source"><div class="src-meta">§1 Introduction · 第 1 页</div><p>"Hand-crafted feature engineering is a major bottleneck in relational learning, requiring deep domain expertise and substantial manual effort."</p></div>
+      </div>
+
+      <div class="stop">
+        <div class="node thought">💡</div>
+        <div class="where">§3 METHOD · 自省检索</div>
+        <div class="say">真正有意思的在 §3。它不光是「让 LLM 生成特征」，而是加了个<b>自省检索</b>：<span class="hl">把之前生成过的失败特征存进记忆，下次生成前先查</span>，主动避开老路。这个设计是它和普通 agent 拉开差距的地方，我觉得是全文最巧的一笔。</div>
+        <span class="cite" onclick="toggleSrc(this,event)">📖 原文</span>
+        <div class="source"><div class="src-meta">§3 Method · 第 4 页</div><p>"The agent maintains a memory of previously generated features, and retrieves from this memory before proposing new candidates."</p></div>
+      </div>
+
+      <div class="stop">
+        <div class="node fig">📊</div>
+        <div class="where">FIGURE 2 · 框架图</div>
+        <div class="say">这张框架图把<span class="hl">「生成 → 评估 → 检索 → 再生成」的闭环</span>画得很清楚。值得盯着看的是<b>检索放在生成前面</b>——这不是事后补救，是事前约束。光看图就能 get 到它和普通 agent 的区别。</div>
+        <span class="cite" onclick="toggleSrc(this,event)">📖 看图</span>
+        <div class="source"><div class="src-meta">Figure 2 · 框架图（第 4 页）</div><p>[此处嵌入原文框架图]</p></div>
+      </div>
+
+      <div class="stop">
+        <div class="node fig">📊</div>
+        <div class="where">TABLE 2 · 实验结果</div>
+        <div class="say">结果让我<b>有点惊讶</b>：20 个数据集 15 个登顶。但我盯着表细看，<span class="hl">部分数据集领先幅度很小（1% 以内）</span>。这个「全面 SOTA」的成色，我觉得要打个折。</div>
+        <span class="cite" onclick="toggleSrc(this,event)">📖 原文</span>
+        <div class="source"><div class="src-meta">Table 2 · §5 Experiments · 第 7 页</div><p>"RELAGENT achieves state-of-the-art results on 15 of 20 datasets in RelBenchV1."</p></div>
+      </div>
+
+      <div class="stop">
+        <div class="node question">🤔</div>
+        <div class="where">读完全文后的疑问</div>
+        <div class="say">合上之前我还有个<b>没被回答的问题</b>：LLM 搜出来的特征，人看得懂吗？工业落地谁能审计、谁能解释这些特征？论文对可解释性只字未提，这可能是它离落地最远的地方。</div>
+      </div>
+
+    </div>
+
+    <div class="finale">
+      <div class="k">读完的整体判断</div>
+      <p>方向对，方法有巧思（自省检索），但小幅度领先和可解释性缺失是硬伤。<b>值得精读的是 §3 方法和 §5 实验的消融部分</b>，其余可速读。</p>
+      <div class="stars">★★★★☆</div>
+    </div>
+
+    <div class="read-plan">
+      <div class="k">📋 AI 给你的阅读建议</div>
+
+      <div class="sec">
+        <div class="sec-h"><span class="tag careful">精读</span> 这 3 处值得你自己读原文</div>
+        <ul>
+          <li><span class="ref">§3</span> Method —— 自省检索的闭环是全文核心</li>
+          <li><span class="ref">§5.2</span> Ablation —— 验证自省检索到底贡献了多少</li>
+          <li><span class="ref">Table 2</span> 亲自看领先幅度，判断「SOTA」成色</li>
+        </ul>
+      </div>
+
+      <div class="sec">
+        <div class="sec-h"><span class="tag skim">略读</span> 扫一眼即可</div>
+        <ul>
+          <li><span class="ref">§2</span> Related Work —— 罗列性综述，知道有哪些 baseline 就行</li>
+          <li><span class="ref">§4</span> 实验设置 —— 标准配置，除非你要复现</li>
+        </ul>
+      </div>
+
+      <div class="sec">
+        <div class="sec-h"><span class="tag skip">可跳过</span></div>
+        <ul>
+          <li><span class="ref">Appendix</span> 细节推导，非必要</li>
+        </ul>
+      </div>
+
+      <div class="sec">
+        <div class="sec-h"><span class="tag focus">重点关注</span> 读的时候盯住这 3 点</div>
+        <ul>
+          <li><span class="ref">①</span> 自省检索 vs 纯生成的消融对比 —— 是不是真靠它拉开差距</li>
+          <li><span class="ref">②</span> Table 2 里领先 &lt;1% 的数据集 —— 「SOTA」是否被夸大</li>
+          <li><span class="ref">③</span> 可解释性有没有任何交代 —— 工业落地的关键</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footnote">这是 AI 读这篇论文的真实轨迹 —— 每一处停顿都可回到原文验证</div>
+  </div>
+
+<script>
+  function toggleSrc(el, ev) {
+    ev.stopPropagation();
+    el.nextElementSibling.classList.toggle('show');
+  }
+</script>
+</body>
+</html>

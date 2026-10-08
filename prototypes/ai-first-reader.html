@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 先读 · RelAgent</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f7f5f0;
+    --card: #ffffff;
+    --ink: #1c1a16;
+    --ink-2: #57534e;
+    --ink-3: #8a857d;
+    --accent: #b45309;
+    --accent-soft: #fef3c7;
+    --line: #e7e2d8;
+    --serif: Georgia, "Songti SC", "Noto Serif SC", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --mono: "SF Mono", ui-monospace, Menlo, monospace;
+  }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 80px;
+  }
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(247,245,240,.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 24px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .brand { font-weight: 700; letter-spacing: -.3px; font-size: 15px; }
+  .brand span { color: var(--accent); }
+  .ai-badge {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--accent-soft); color: var(--accent);
+    border: 1px solid #fde68a; border-radius: 999px;
+    padding: 4px 12px; font-size: 12.5px; font-weight: 600;
+  }
+  .ai-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 20px; }
+
+  .paper-head { padding: 36px 0 8px; }
+  .paper-head .tag { font-size: 12px; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .8px; }
+  .paper-head h1 { font-family: var(--serif); font-size: 27px; line-height: 1.3; margin: 8px 0 10px; letter-spacing: -.3px; }
+  .paper-head .meta { color: var(--ink-3); font-size: 13px; }
+
+  .read-report { display: flex; align-items: center; gap: 10px; margin: 22px 0 6px; }
+  .read-report .rule { flex: 1; height: 1px; background: var(--line); }
+  .read-report .label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+
+  /* TL;DR */
+  .tldr {
+    background: linear-gradient(135deg, #1c1a16, #2d2922);
+    color: #f5f1e8; border-radius: 14px; padding: 22px 24px; margin: 14px 0 8px;
+  }
+  .tldr .k { font-size: 12px; letter-spacing: 1px; color: #d6b56a; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; }
+  .tldr p { font-family: var(--serif); font-size: 17px; line-height: 1.65; }
+
+  /* 卡片 */
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    margin: 12px 0; overflow: hidden; transition: box-shadow .15s;
+  }
+  .card:hover { box-shadow: 0 2px 12px rgba(0,0,0,.05); }
+  .card-head {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 16px 18px; cursor: pointer; user-select: none;
+  }
+  .card-head .no {
+    font-family: var(--mono); font-size: 12px; color: var(--accent); font-weight: 700;
+    background: var(--accent-soft); border-radius: 6px; padding: 3px 8px; flex-shrink: 0; margin-top: 2px;
+  }
+  .card-head .ttl { font-size: 15.5px; font-weight: 650; flex: 1; }
+  .card-head .chev { color: var(--ink-3); transition: transform .2s; font-size: 14px; margin-top: 3px; }
+  .card.open .chev { transform: rotate(90deg); }
+  .card-body { display: none; padding: 0 18px 18px 50px; }
+  .card.open .card-body { display: block; }
+  .card-body .explain { color: var(--ink-2); font-size: 14.5px; line-height: 1.7; }
+  .card-body .explain b { color: var(--ink); }
+
+  /* 原文依据 */
+  .cite {
+    margin-top: 12px; display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--accent); font-weight: 600; cursor: pointer;
+    border: 1px solid #e5d5b0; background: #fdfaf3; border-radius: 8px; padding: 6px 12px;
+  }
+  .cite:hover { background: var(--accent-soft); }
+  .source {
+    display: none; margin-top: 10px;
+    border-left: 3px solid var(--accent); background: #faf8f3;
+    border-radius: 0 8px 8px 0; padding: 12px 16px;
+  }
+  .source.show { display: block; }
+  .source .src-meta { font-family: var(--mono); font-size: 11.5px; color: var(--accent); margin-bottom: 6px; font-weight: 600; }
+  .source p { font-family: var(--serif); font-size: 14px; color: var(--ink-2); line-height: 1.7; font-style: italic; }
+
+  /* 关键发现 */
+  .findings { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0; }
+  .find { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .find .num { font-family: var(--serif); font-size: 26px; font-weight: 700; color: var(--accent); }
+  .find .desc { font-size: 13px; color: var(--ink-2); margin-top: 4px; }
+
+  /* 批判性思考 */
+  .crit { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin: 12px 0; }
+  .crit .k { font-size: 12px; letter-spacing: 1px; color: #9a3412; font-weight: 700; text-transform: uppercase; margin-bottom: 10px; }
+  .crit ul { list-style: none; }
+  .crit li { padding: 7px 0; font-size: 14px; color: var(--ink-2); border-bottom: 1px dashed var(--line); }
+  .crit li:last-child { border-bottom: none; }
+  .crit li::before { content: "⚠ "; color: #d97706; }
+
+  /* 价值判断 */
+  .verdict { display: flex; align-items: center; gap: 14px; margin: 16px 0 4px; }
+  .stars { font-size: 20px; color: var(--accent); letter-spacing: 2px; }
+  .verdict .txt { font-size: 14px; color: var(--ink-2); }
+  .verdict .txt b { color: var(--ink); }
+
+  .footnote { text-align: center; color: var(--ink-3); font-size: 12px; margin-top: 28px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">AI<span>先读</span> · 论文理解</div>
+    <div class="ai-badge"><span class="dot"></span>AI 已读完 · 约 3 分钟理解</div>
+  </div>
+
+  <div class="wrap">
+    <div class="paper-head">
+      <div class="tag">arXiv 2605.07840</div>
+      <h1>RelAgent: LLM Agents as Data Scientists for Relational Learning</h1>
+      <div class="meta">Anonymous · RelBenchV1 · 33 页 · 2026</div>
+    </div>
+
+    <div class="read-report"><div class="rule"></div><span class="label">AI 的读后理解</span><div class="rule"></div></div>
+
+    <div class="tldr">
+      <div class="k">一句话结论</div>
+      <p>这篇论文把关系数据学习的三大环节——特征工程、建模、检索——交给一个 LLM Agent 自动完成，首次在 RelBench 基准上全面超越人工特征工程。</p>
+    </div>
+
+    <div class="card" onclick="toggle(this)">
+      <div class="card-head">
+        <span class="no">贡献 1</span>
+        <span class="ttl">Agentic 特征工程：让 LLM 在 SQL 特征空间里自主搜索</span>
+        <span class="chev">›</span>
+      </div>
+      <div class="card-body">
+        <div class="explain">
+          传统关系学习最耗人力的是<b>特征工程</b>——要理解多张表的主外键关系，手工构造聚合、时序、图结构特征。RelAgent 把这一步变成 LLM agent 的<b>搜索问题</b>：agent 在「SQL 查询定义的特征空间」里迭代生成候选特征、在验证集上评估、保留有效特征继续深挖，形成一个自动化的特征发现闭环。
+        </div>
+        <span class="cite" onclick="toggleSource(this, event)">📖 查看原文依据</span>
+        <div class="source">
+          <div class="src-meta">RELAGENT · §1 Introduction · 第 1 页</div>
+          <p>"We present RELAGENT, an agentic framework that uses an LLM agent to automate feature engineering and modeling for relational learning, replacing hand-crafted feature design with an iterative search over SQL-defined features."</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" onclick="toggle(this)">
+      <div class="card-head">
+        <span class="no">贡献 2</span>
+        <span class="ttl">自省式检索：agent 从自己的失败特征里学习</span>
+        <span class="chev">›</span>
+      </div>
+      <div class="card-body">
+        <div class="explain">
+          纯「生成-评估」的 agent 容易在特征空间里打转。RelAgent 引入<b>自省（self-reflection）</b>：把 agent 之前生成过、但表现差的特征存进记忆库，生成新特征前先检索这些「失败案例」，让 agent 主动避开低效路径。这让搜索更聚焦，也是它效率超越纯 LLM 的关键。
+        </div>
+        <span class="cite" onclick="toggleSource(this, event)">📖 查看原文依据</span>
+        <div class="source">
+          <div class="src-meta">RELAGENT · §3 Method · 第 4 页</div>
+          <p>"The agent maintains a memory of previously generated features, and retrieves from this memory before proposing new candidates, allowing it to reflect on past failures and avoid redundant exploration."</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" onclick="toggle(this)">
+      <div class="card-head">
+        <span class="no">贡献 3</span>
+        <span class="ttl">RelBenchV1 全面 SOTA：20 个数据集 15 个登顶</span>
+        <span class="chev">›</span>
+      </div>
+      <div class="card-body">
+        <div class="explain">
+          在 RelBench 的 20 个真实关系数据集上，RelAgent 在 <b>15 个</b>上取得第一，平均相对提升约 10%，且无需任何人工特征。对比对象包括手工特征工程的强 baseline（GNN、表格模型）以及零样本 LLM 方法，说明 agent 自动发现的特征质量已经稳定超过人。
+        </div>
+        <span class="cite" onclick="toggleSource(this, event)">📖 查看原文依据</span>
+        <div class="source">
+          <div class="src-meta">RELAGENT · §5 Experiments · 第 7 页</div>
+          <p>"RELAGENT achieves state-of-the-art results on 15 of 20 datasets in RelBenchV1, with an average relative improvement of about 10% over the strongest baseline."</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" onclick="toggle(this)">
+      <div class="card-head">
+        <span class="no">贡献 4</span>
+        <span class="ttl">端到端自动化：原始表进，最终预测出</span>
+        <span class="chev">›</span>
+      </div>
+      <div class="card-body">
+        <div class="explain">
+          从多张原始关系表，到最终的任务预测结果，全程<b>无需人工介入</b>。这不仅是特征工程的自动化，而是把「理解 schema → 构造特征 → 建模 → 调优」整条数据科学流水线压缩进一个 agent。对工业界而言，这意味着关系学习从「专家手艺」变成「可规模化的自动流程」。
+        </div>
+        <span class="cite" onclick="toggleSource(this, event)">📖 查看原文依据</span>
+        <div class="source">
+          <div class="src-meta">RELAGENT · §1 Introduction · 第 2 页</div>
+          <p>"RelAgent takes raw relational tables as input and produces a trained model end-to-end, without any manual feature engineering or human intervention."</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="read-report"><div class="rule"></div><span class="label">关键发现</span><div class="rule"></div></div>
+
+    <div class="findings">
+      <div class="find"><div class="num">15 / 20</div><div class="desc">数据集上取得第一</div></div>
+      <div class="find"><div class="num">~10%</div><div class="desc">平均相对提升</div></div>
+    </div>
+
+    <div class="read-report"><div class="rule"></div><span class="label">AI 的批判性思考</span><div class="rule"></div></div>
+
+    <div class="crit">
+      <div class="k">值得你留意的疑点</div>
+      <ul>
+        <li>LLM 生成特征的可解释性弱，难审计，工业落地有合规风险</li>
+        <li>实验集中在表格数据，图 / 时序数据的泛化未验证</li>
+        <li>Agent 迭代的 token 成本没有和人工成本做严格对比</li>
+      </ul>
+    </div>
+
+    <div class="verdict">
+      <div class="stars">★★★★☆</div>
+      <div class="txt"><b>值得精读</b> · 方法论新颖、实验扎实，是「Agent + 数据科学」方向的重要参照</div>
+    </div>
+
+    <div class="footnote">这是 AI 的读后理解，不是原文 —— 点「查看原文依据」回到原文验证</div>
+  </div>
+
+<script>
+  function toggle(card) {
+    // 手风琴：同一时间只展开一张卡片
+    document.querySelectorAll('.card').forEach(c => { if (c !== card) c.classList.remove('open'); });
+    card.classList.toggle('open');
+  }
+  function toggleSource(el, ev) {
+    ev.stopPropagation();           // 不触发卡片的展开/收起
+    el.nextElementSibling.classList.toggle('show');
+  }
+</script>
+</body>
+</html>
