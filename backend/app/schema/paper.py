@@ -30,6 +30,8 @@ class PaperDetail(BaseModel):
     file_url: str
     paper_metadata: Dict[str, Any] = Field(default_factory=dict)
     parsed_structure: Dict[str, Any] = Field(default_factory=dict)
+    reading_guide: Dict[str, Any] = Field(default_factory=dict)
+    user_engagement: Dict[str, Any] = Field(default_factory=dict)
     status: str
     error_message: Optional[str] = None
     created_at: datetime

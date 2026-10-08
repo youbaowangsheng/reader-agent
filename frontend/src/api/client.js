@@ -39,6 +39,12 @@ api.parsePaper = (id) => api.post(`/papers/${id}/parse`);
 api.getNotes = (paperId) => api.get(`/papers/${paperId}/notes`);
 api.generateNotes = (paperId) => api.post(`/papers/${paperId}/notes/generate`);
 
+// Reading Guide (AI 导读)
+api.getReadingGuide = (paperId) => api.get(`/papers/${paperId}/reading-guide`);
+api.generateReadingGuide = (paperId, force = false) => api.post(`/papers/${paperId}/reading-guide/generate`, { force });
+api.saveEngagement = (paperId, data) => api.put(`/papers/${paperId}/reading-guide/engagement`, data);
+api.exportEngagement = (paperId) => api.get(`/papers/${paperId}/reading-guide/engagement/export`);
+
 // Chunks
 api.searchChunks = (paperId, query, topK = 5) => api.post(`/papers/${paperId}/chunks/search`, { query, top_k: topK });
 api.askQuestion = (paperId, question, sessionId, chatHistory = [], topK = 5) => {

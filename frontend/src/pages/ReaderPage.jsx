@@ -1,311 +1,372 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../api/client';
+import GuidePdfPanel from '../components/GuidePdfPanel';
+
+const NODE_ICON = { location: '📍', thought: '💡', question: '🤔', fig: '📊' };
 
 function ReaderPage({ active }) {
   const [papers, setPapers] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [paperDetail, setPaperDetail] = useState(null);
-  const [notes, setNotes] = useState(null);
-  const [factCards, setFactCards] = useState([]);
-  const [messages, setMessages] = useState([]);
-  const [question, setQuestion] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [activeAsstTab, setActiveAsstTab] = useState('chat');
-  const [conceptIndex, setConceptIndex] = useState(0);
-  const [selectedText, setSelectedText] = useState('');
-  const [tocCollapsed, setTocCollapsed] = useState(false);
-  const [sessionId] = useState(() => localStorage.getItem('reader_session') || ('sid-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10)));
-  const bodyRef = useRef(null);
-
-  useEffect(() => {
-    localStorage.setItem('reader_session', sessionId);
-  }, [sessionId]);
+  const [guide, setGuide] = useState(null);
+  const [engagement, setEngagement] = useState({});
+  const [pdfState, setPdfState] = useState(null); // {page, highlight}
+  const [noteDraft, setNoteDraft] = useState({});
+  const [myView, setMyView] = useState('');
+  const [regenerating, setRegenerating] = useState(false);
 
   // 加载论文列表
   useEffect(() => {
     if (!active) return;
     api.getPapers().then(res => {
       setPapers(res.data);
-      if (res.data.length > 0 && !selectedId) {
-        setSelectedId(res.data[0].id);
-      }
+      if (res.data.length > 0 && !selectedId) setSelectedId(res.data[0].id);
     }).catch(() => {});
   }, [active]);
 
-  // 选中论文 → 加载详情 + 笔记 + 事实卡片
+  // 选中论文 → 加载详情 + 导读 + 交互
   useEffect(() => {
     if (!selectedId) return;
     setPaperDetail(null);
-    setNotes(null);
-    setFactCards([]);
-    setMessages([]);
-    setConceptIndex(0);
-    setSelectedText('');
-    api.getPaper(selectedId).then(res => setPaperDetail(res.data)).catch(() => {});
-    api.getNotes(selectedId).then(res => setNotes(res.data)).catch(() => setNotes(null));
-    api.getFactCards(selectedId).then(res => setFactCards(res.data)).catch(() => {});
+    setGuide(null);
+    setEngagement({});
+    setPdfState(null);
+    setMyView('');
+    setNoteDraft({});
+    api.getPaper(selectedId).then(res => {
+      const d = res.data;
+      setPaperDetail(d);
+      setGuide(d.reading_guide || null);
+      setEngagement(d.user_engagement || {});
+      setMyView(d.user_engagement?.my_view || '');
+    }).catch(() => {});
   }, [selectedId]);
 
-  // 划词
-  const handleMouseUp = () => {
-    const sel = window.getSelection();
-    const t = sel ? sel.toString().trim() : '';
-    if (t && t.length < 500) setSelectedText(t);
-  };
-
-  const handleAsk = async (q) => {
-    const text = (q ?? question).trim();
-    if (!text || !selectedId || loading) return;
-    setMessages(prev => [...prev, { role: 'user', content: text }]);
-    setQuestion('');
-    setLoading(true);
-    try {
-      const history = messages.map(m => ({ role: m.role, content: m.content }));
-      const res = await api.askQuestion(selectedId, text, sessionId, history);
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: res.data.answer,
-        citations: res.data.citations || []
-      }]);
-    } catch (err) {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: '回答失败：' + (err.response?.data?.detail || err.message)
-      }]);
-    } finally {
-      setLoading(false);
+  // 触发生成导读（未生成时）
+  useEffect(() => {
+    if (!selectedId || !paperDetail) return;
+    if (paperDetail.status !== 'ready') return;
+    if (!guide) return;
+    if (!guide.status || guide.status === 'none') {
+      api.generateReadingGuide(selectedId).then(() => {
+        setGuide(g => (g ? { ...g, status: 'generating' } : { status: 'generating' }));
+      }).catch(() => {});
     }
-  };
+  }, [guide, selectedId, paperDetail]);
 
-  const sections = paperDetail?.parsed_structure?.sections || [];
-  const title = paperDetail?.parsed_structure?.title || paperDetail?.filename || '';
-  const keyConcepts = notes?.key_concepts || [];
-  const status = paperDetail?.status || '';
+  // 轮询导读生成状态
+  useEffect(() => {
+    if (!selectedId || !guide || guide.status !== 'generating') return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await api.getReadingGuide(selectedId);
+        setGuide(res.data);
+      } catch (_) {}
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [guide?.status, selectedId]);
 
-  const scrollToSection = (idx) => {
-    const el = document.getElementById(`sec-${idx}`);
-    if (el && bodyRef.current) {
-      bodyRef.current.scrollTo({ top: el.offsetTop - 16, behavior: 'smooth' });
-    }
-  };
-
-  // 渲染正文：识别 [IMAGE:url] 为图片、[TABLE] 为等宽表格、其余为段落
-  const renderContent = (content) => {
-    if (!content) return null;
-    const paras = content.split('\n\n');
-    return paras.map((p, i) => {
-      const m = p.match(/^\[IMAGE:(.+?)\]$/);
-      if (m) {
-        return <img key={i} src={m[1]} alt="" className="paper-img" loading="lazy" />;
-      }
-      if (p.startsWith('[TABLE]')) {
-        return <pre key={i} className="paper-table">{p.slice(7)}</pre>;
-      }
-      return <p key={i}>{p}</p>;
+  const saveEngagement = (patch) => {
+    setEngagement(prev => {
+      const next = { ...prev, ...patch };
+      return next;
     });
+    api.saveEngagement(selectedId, patch).catch(() => {});
+  };
+
+  const judge = (trailId, v) => {
+    const judgments = { ...(engagement.judgments || {}) };
+    if (judgments[trailId] === v) delete judgments[trailId]; // 再点取消
+    else judgments[trailId] = v;
+    saveEngagement({ judgments });
+  };
+
+  const note = (trailId, text) => {
+    const notes = { ...(engagement.notes || {}), [trailId]: text };
+    saveEngagement({ notes });
+  };
+
+  const submitMyView = () => saveEngagement({ my_view: myView });
+
+  const answer = (qid, a) => {
+    const quiz_answers = { ...(engagement.quiz_answers || {}), [qid]: a };
+    saveEngagement({ quiz_answers });
+  };
+
+  const openPdf = (anchor) => {
+    if (anchor?.page) setPdfState({ page: anchor.page, highlight: anchor.highlight || '' });
+  };
+
+  const regenerate = () => {
+    setRegenerating(true);
+    api.generateReadingGuide(selectedId, true).then(() => {
+      setGuide(g => (g ? { ...g, status: 'generating' } : { status: 'generating' }));
+    }).catch(() => {}).finally(() => setRegenerating(false));
+  };
+
+  const exportView = async () => {
+    try {
+      const res = await api.exportEngagement(selectedId);
+      const blob = new Blob([res.data.markdown], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '我的阅读观点.md';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('导出失败', e);
+    }
+  };
+
+  const voice = (setter) => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { alert('当前浏览器不支持语音识别'); return; }
+    const rec = new SR();
+    rec.lang = 'zh-CN';
+    rec.onresult = (e) => setter(e.results[0][0].transcript);
+    rec.onerror = () => {};
+    rec.start();
   };
 
   if (!active) return null;
 
+  const fileUrl = paperDetail?.file_url ? paperDetail.file_url.replace(/^\.\//, '/') : '';
+  const title = paperDetail?.paper_metadata?.title || paperDetail?.filename || '';
+  const plan = guide?.reading_plan || {};
+  const trail = guide?.trail || [];
+  const verdict = guide?.verdict || {};
+  const quiz = guide?.quiz || [];
+  const status = guide?.status;
+
   return (
-    <div className="reader-page">
-      <div className="reader-toolbar">
+    <div className="guide-page">
+      <div className="guide-toolbar">
         <select value={selectedId || ''} onChange={e => setSelectedId(e.target.value)}>
           <option value="">选择一篇论文…</option>
-          {papers.map(p => (
-            <option key={p.id} value={p.id}>{p.filename} · {p.status}</option>
-          ))}
+          {papers.map(p => <option key={p.id} value={p.id}>{p.filename}</option>)}
         </select>
         <div className="spacer" />
-        <button className="btn-ghost">导出笔记</button>
+        {status === 'generated' && (
+          <>
+            <button className="btn-ghost" onClick={regenerate} disabled={regenerating}>
+              {regenerating ? '重新生成中…' : '🔄 重新生成导读'}
+            </button>
+            <button className="btn-ghost" onClick={exportView}>📤 导出我的观点</button>
+          </>
+        )}
       </div>
 
-      <div className={`reader-layout ${tocCollapsed ? 'toc-collapsed' : ''}`}>
-        {/* 左栏：目录 */}
-        <aside className={`r-sidebar ${tocCollapsed ? 'collapsed' : ''}`}>
-          {tocCollapsed ? (
-            <button className="toc-rail" onClick={() => setTocCollapsed(false)} title="展开目录">
-              <span className="toc-rail-icon">»</span>
-              <span className="toc-rail-label">目录</span>
-            </button>
-          ) : (
-            <div className="r-group">
-              <div className="r-label-row">
-                <div className="r-label">目录</div>
-                <button className="toc-collapse-btn" onClick={() => setTocCollapsed(true)} title="收起目录">«</button>
-              </div>
-              {sections.length === 0 ? (
-                <div className="empty-state">暂无内容</div>
-              ) : sections.map((s, i) => (
-                <button
-                  key={i}
-                  className={`r-toc-item ${s.level > 1 ? 'child' : ''}`}
-                  onClick={() => scrollToSection(i)}
-                >
-                  {s.level <= 1 && <span className="num">{i + 1}</span>}
-                  <span>{s.heading}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </aside>
+      <div className={`guide-layout ${pdfState ? 'has-pdf' : ''}`}>
+        <main className="guide-main">
+          <div className="guide-paper-head">
+            <div className="guide-tag">AI 导读</div>
+            <h1>{title}</h1>
+          </div>
 
-        {/* 中栏：正文 */}
-        <main className="r-body" ref={bodyRef} onMouseUp={handleMouseUp}>
-          {paperDetail ? (
-            status === 'ready' && sections.length > 0 ? (
-              <article className="paper">
-                <h1>{title}</h1>
-                {sections.map((s, i) => (
-                  <section key={i} id={`sec-${i}`}>
-                    {s.level <= 1 ? <h2>{s.heading}</h2> : <h3>{s.heading}</h3>}
-                    {renderContent(s.content)}
-                  </section>
+          {status === 'generating' && (
+            <div className="guide-status">🤖 AI 正在读这篇论文，生成导读中…</div>
+          )}
+          {status === 'error' && (
+            <div className="guide-status err">导读生成失败：{guide?.error || '请重试'}</div>
+          )}
+          {!status && paperDetail?.status === 'ready' && (
+            <div className="guide-status">论文已解析，正在准备导读…</div>
+          )}
+          {paperDetail && paperDetail.status !== 'ready' && (
+            <div className="guide-status">{paperDetail.status === 'error' ? '解析失败' : '论文解析中，请稍候…'}</div>
+          )}
+
+          {status === 'generated' && (
+            <>
+              <SectionTitle label="阅读建议" />
+              <ReadingPlan plan={plan} onLink={openPdf} />
+
+              <SectionTitle label="一句话总结" />
+              <div className="guide-summary"><p>{guide.summary}</p></div>
+
+              <SectionTitle label="导读轨迹" />
+              <div className="guide-trail">
+                {trail.map(t => (
+                  <TrailStop
+                    key={t.id}
+                    t={t}
+                    judgment={engagement.judgments?.[t.id]}
+                    note={engagement.notes?.[t.id]}
+                    noteDraft={noteDraft[t.id] || ''}
+                    onJudge={v => judge(t.id, v)}
+                    onNote={text => note(t.id, text)}
+                    onDraft={text => setNoteDraft(d => ({ ...d, [t.id]: text }))}
+                    onLink={openPdf}
+                    onVoice={voice}
+                  />
                 ))}
-              </article>
-            ) : (
-              <div className="reader-empty">
-                <div className="icon">…</div>
-                <div>{status === 'error' ? ('解析失败：' + (paperDetail.error_message || '')) : '论文解析中，请稍候…'}</div>
               </div>
-            )
-          ) : (
-            <div className="reader-empty">
-              <div className="icon">📄</div>
-              <div>选择一篇论文开始阅读</div>
-            </div>
+
+              <SectionTitle label="整体判断" />
+              <div className="guide-verdict">
+                <p>{verdict.text}</p>
+                <div className="guide-stars">
+                  {'★'.repeat(verdict.stars || 0)}{'☆'.repeat(Math.max(0, 5 - (verdict.stars || 0)))}
+                </div>
+              </div>
+
+              <SectionTitle label="我的观点" />
+              <div className="guide-myview">
+                <div className="guide-myview-prompt">读完了，别急着照单全收 —— 上面 AI 的观点你认同几条？哪些不同意？为什么？</div>
+                <textarea
+                  value={myView}
+                  onChange={e => setMyView(e.target.value)}
+                  placeholder="这篇论文我的看法是…"
+                />
+                <div className="guide-myview-actions">
+                  <button className="guide-voice-btn" onClick={() => voice(setMyView)}>🎤 语音输入</button>
+                  <button className="guide-submit" onClick={submitMyView}>记录我的观点</button>
+                </div>
+              </div>
+
+              <SectionTitle label="检测题目" />
+              <div className="guide-quiz">
+                {quiz.map(q => (
+                  <QuizItem
+                    key={q.id}
+                    q={q}
+                    chosen={engagement.quiz_answers?.[q.id]}
+                    onAnswer={a => answer(q.id, a)}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </main>
 
-        {/* 右栏：AI 助读 */}
-        <aside className="r-asst">
-          <div className="asst-head">
-            <div className="t"><span className="dot"></span> AI 助读</div>
-            <div className="sub">术语解释 · 段落问答 · 笔记</div>
-          </div>
-
-          {keyConcepts.length > 0 ? (
-            <div className="term-card">
-              <div className="label">核心概念</div>
-              <div className="term-name">{keyConcepts[conceptIndex].term}</div>
-              <div className="term-def">{keyConcepts[conceptIndex].definition}</div>
-              <div className="chips" style={{ marginTop: 8 }}>
-                {keyConcepts.map((c, i) => (
-                  <button
-                    key={i}
-                    className={`chip ${i === conceptIndex ? 'active' : ''}`}
-                    onClick={() => setConceptIndex(i)}
-                  >{c.term}</button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="term-card">
-              <div className="label">核心概念</div>
-              <div className="term-def" style={{ color: 'var(--text-4)' }}>暂无，解析完成后自动生成</div>
-            </div>
-          )}
-
-          <div className="asst-tabs">
-            <button className={`asst-tab ${activeAsstTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveAsstTab('chat')}>对话</button>
-            <button className={`asst-tab ${activeAsstTab === 'notes' ? 'active' : ''}`} onClick={() => setActiveAsstTab('notes')}>笔记</button>
-            <button className={`asst-tab ${activeAsstTab === 'cards' ? 'active' : ''}`} onClick={() => setActiveAsstTab('cards')}>卡片</button>
-          </div>
-
-          <div className="asst-body">
-            {activeAsstTab === 'chat' && (
-              <>
-                <div className="chips">
-                  <button className="chip" onClick={() => handleAsk('这篇文章的主要贡献是什么？')}>主要贡献</button>
-                  <button className="chip" onClick={() => handleAsk('用中文总结这篇论文')}>总结</button>
-                  <button className="chip" onClick={() => handleAsk('这篇论文的方法有什么局限性？')}>局限性</button>
-                </div>
-                {messages.length === 0 && (
-                  <div className="empty-state">针对论文提问，AI 会带页码引用回答</div>
-                )}
-                {messages.map((m, i) => (
-                  <div key={i} className={`msg ${m.role === 'user' ? 'user' : 'ai'}`}>
-                    <div className="who">{m.role === 'user' ? '你' : 'AI 助读'}</div>
-                    <div className="bubble">
-                      {m.content}
-                      {m.citations?.map((c, j) => (
-                        <span key={j} className="citation">
-                          「{(c.quote || '').slice(0, 60)}」 {c.heading} · p.{c.page_range}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
-
-            {activeAsstTab === 'notes' && (
-              notes ? (
-                <>
-                  {notes.summary && (
-                    <div className="ai-summary">
-                      <div className="label">摘要</div>
-                      <div className="content">{notes.summary}</div>
-                    </div>
-                  )}
-                  {notes.critical_questions?.length > 0 && (
-                    <div>
-                      <div className="r-label">批判性思考</div>
-                      {notes.critical_questions.map((q, i) => (
-                        <div key={i} className="crit-q">{q}</div>
-                      ))}
-                    </div>
-                  )}
-                  {notes.overall_evaluation && (
-                    <div className="ai-summary">
-                      <div className="label">综合评价</div>
-                      <div className="content">
-                        创新 {notes.overall_evaluation.novelty} · 严谨 {notes.overall_evaluation.rigor} · 可复现 {notes.overall_evaluation.reproducibility}
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="empty-state">暂无笔记</div>
-              )
-            )}
-
-            {activeAsstTab === 'cards' && (
-              factCards.length > 0 ? factCards.map((c, i) => (
-                <div key={i} className="fact-card">
-                  <div className="claim">
-                    <span className={`conf-dot ${c.confidence >= 0.7 ? 'conf-high' : c.confidence >= 0.4 ? 'conf-mid' : 'conf-low'}`}></span>
-                    {c.claim}
-                  </div>
-                  {c.evidence && <div className="evidence-preview">{c.evidence}</div>}
-                </div>
-              )) : (
-                <div className="empty-state">暂无事实卡片</div>
-              )
-            )}
-          </div>
-
-          {selectedText && (
-            <div style={{ padding: '6px 12px 0' }}>
-              <button className="chip" onClick={() => handleAsk('请解释下面这段：' + selectedText)}>
-                问 AI：「{selectedText.slice(0, 26)}…」
-              </button>
-            </div>
-          )}
-
-          <div className="asst-input">
-            <div className="input-row">
-              <textarea
-                value={question}
-                onChange={e => setQuestion(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAsk(); } }}
-                placeholder="针对当前论文提问…（Enter 发送）"
-              />
-              <button className="send-btn" onClick={() => handleAsk()} disabled={loading || !question.trim()}>→</button>
-            </div>
-          </div>
-        </aside>
+        {pdfState && (
+          <aside className="guide-pdf-aside">
+            <GuidePdfPanel
+              fileUrl={fileUrl}
+              page={pdfState.page}
+              highlight={pdfState.highlight}
+              onClose={() => setPdfState(null)}
+            />
+          </aside>
+        )}
       </div>
+    </div>
+  );
+}
+
+function SectionTitle({ label }) {
+  return (
+    <div className="guide-sec-title">
+      <div className="rule" /><span className="label">{label}</span><div className="rule" />
+    </div>
+  );
+}
+
+function ReadingPlan({ plan, onLink }) {
+  const careful = plan.careful || [];
+  const skim = plan.skim || [];
+  const focus = plan.focus || [];
+  return (
+    <div className="guide-plan">
+      {careful.length > 0 && (
+        <div className="guide-plan-sec">
+          <div className="guide-plan-h"><span className="guide-plan-tag careful">精读</span> 这 {careful.length} 处</div>
+          <ul>
+            {careful.map((c, i) => (
+              <li key={i}>
+                <span className="ref">{c.ref}</span>
+                <span className="guide-link" onClick={() => onLink(c.anchor)}>
+                  {c.label}{c.note ? ' —— ' + c.note : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {skim.length > 0 && (
+        <div className="guide-plan-sec">
+          <div className="guide-plan-h"><span className="guide-plan-tag skim">略读</span> 扫一眼即可</div>
+          <ul>
+            {skim.map((c, i) => (
+              <li key={i}>
+                <span className="ref">{c.ref}</span>
+                <span className="guide-link" onClick={() => onLink(c.anchor)}>{c.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {focus.length > 0 && (
+        <div className="guide-plan-sec">
+          <div className="guide-plan-h"><span className="guide-plan-tag focus">重点盯</span> 这 {focus.length} 点</div>
+          <ul className="focus-list">
+            {focus.map((f, i) => <li key={i}>{f}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TrailStop({ t, judgment, note, noteDraft, onJudge, onNote, onDraft, onLink, onVoice }) {
+  const [noteOpen, setNoteOpen] = useState(false);
+  return (
+    <div className="guide-stop">
+      <div className="guide-stop-node">{NODE_ICON[t.type] || '📍'}</div>
+      <div className="guide-stop-where">{t.where}</div>
+      <div className="guide-stop-say">
+        {t.says}
+        {t.anchor?.page && (
+          <div className="guide-stop-linkrow">
+            <span className="guide-link" onClick={() => onLink(t.anchor)}>看原文 ↗</span>
+          </div>
+        )}
+      </div>
+      <div className="guide-react">
+        <span className="guide-react-label">你的判断</span>
+        <button className={`guide-jbtn agree ${judgment === 'agree' ? 'sel' : ''}`} onClick={() => onJudge('agree')}>✓ 认同</button>
+        <button className={`guide-jbtn doubt ${judgment === 'doubt' ? 'sel' : ''}`} onClick={() => onJudge('doubt')}>? 存疑</button>
+        <button className={`guide-jbtn reject ${judgment === 'reject' ? 'sel' : ''}`} onClick={() => onJudge('reject')}>✗ 不认同</button>
+        <button className="guide-note-btn" onClick={() => setNoteOpen(o => !o)}>💬 说点什么</button>
+      </div>
+      {noteOpen && (
+        <div className="guide-note-box">
+          <input
+            value={noteDraft || note || ''}
+            onChange={e => onDraft(e.target.value)}
+            onBlur={() => { if (noteDraft !== (note || '')) onNote(noteDraft); }}
+            placeholder="写下你的看法…"
+          />
+          <button className="guide-mic" onClick={() => onVoice(text => onNote(text))} title="语音输入">🎤</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QuizItem({ q, chosen, onAnswer }) {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <div className="guide-q">
+      <div className="guide-q-t">{q.q}</div>
+      <div className="guide-q-opts">
+        {(q.options || []).map((opt, i) => {
+          const letter = opt.split('.')[0].trim();
+          const isChosen = chosen === letter;
+          const isRight = letter === q.answer;
+          return (
+            <div
+              key={i}
+              className={`guide-opt ${isChosen ? (isRight ? 'right' : 'wrong') : ''} ${revealed && isRight ? 'right' : ''}`}
+              onClick={() => { onAnswer(letter); setRevealed(true); }}
+            >
+              {opt}
+            </div>
+          );
+        })}
+      </div>
+      {revealed && <div className="guide-q-explain">答案 {q.answer}。{q.explain}</div>}
     </div>
   );
 }
