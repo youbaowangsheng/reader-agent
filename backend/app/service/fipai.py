@@ -45,6 +45,22 @@ class FIPAIService:
         output = self._pick_report(data.get("output"))
         return self._extract_markdown(output)
 
+    async def generate_reading_guide(self, parsed_doc: Dict[str, Any], source_path: str = "") -> Dict[str, Any]:
+        """Generate structured reading guide (reading_plan/summary/trail/verdict/quiz)."""
+        payload = {
+            "session_id": f"reader-agent-{self.instance_id}",
+            "input": {
+                "task": "generate_reading_guide",
+                "source_path": source_path,
+                "document": parsed_doc,
+            },
+        }
+        data = await self._run(payload)
+        output = self._pick_report(data.get("output"))
+        if isinstance(output, dict):
+            return output
+        return self._safe_json_from_text(str(output))
+
     async def answer_with_citations(
         self,
         question: str,

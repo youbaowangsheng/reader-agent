@@ -16,6 +16,8 @@ class Paper(Base):
     file_url = Column(Text, nullable=False)
     paper_metadata = Column(JSONB, default=dict)  # title, authors, abstract, keywords
     parsed_structure = Column(JSONB, default=dict)  # pages, chunks, toc
+    reading_guide = Column(JSONB, default=dict)  # AI 导读产物（reading_plan/summary/trail/verdict/quiz）
+    user_engagement = Column(JSONB, default=dict)  # 用户交互（judgments/notes/my_view/quiz_answers）
     status = Column(String(50), default="pending")  # pending/processing/ready/error
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

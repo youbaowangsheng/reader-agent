@@ -123,6 +123,30 @@ Adam是一种结合动量法和自适应学习率的深度学习优化算法，�
 """
 
 
+def generate_reading_guide_mock() -> dict:
+    return {
+        "reading_plan": {
+            "careful": [
+                {"ref": "§3", "label": "Method", "note": "自省检索闭环", "anchor": {"page": 4, "section_index": 2, "highlight": "retrieves from this memory"}}
+            ],
+            "skim": [
+                {"ref": "§2", "label": "Related Work", "anchor": {"page": 3, "section_index": 1}}
+            ],
+            "focus": ["① 自省检索消融", "② 领先<1%的数据集", "③ 可解释性"]
+        },
+        "summary": "这篇让 LLM 替人做关系学习的特征工程，真正的增量是自省检索。",
+        "trail": [
+            {"where": "ABSTRACT", "type": "location", "says": "打开这篇，一句话说清它想干嘛。", "anchor": {"page": 1, "section_index": 0, "highlight": "an agentic framework"}},
+            {"where": "§3 METHOD", "type": "thought", "says": "核心是自省检索，全文最巧的一笔。", "anchor": {"page": 4, "section_index": 2, "highlight": "retrieves from this memory"}},
+            {"where": "读完疑问", "type": "question", "says": "可解释性只字未提。", "anchor": {"page": 99, "section_index": 2}},
+        ],
+        "verdict": {"text": "方向对，方法有巧思。", "stars": 4},
+        "quiz": [
+            {"q": "核心创新？", "options": ["A. LLM生成特征", "B. 自省检索", "C. 更大模型", "D. 更快推理"], "answer": "B", "explain": "答案 B"}
+        ]
+    }
+
+
 class MockFIPAIHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass  # Suppress logging
@@ -195,6 +219,13 @@ class MockFIPAIHandler(BaseHTTPRequestHandler):
                         "pros": ["创新性强", "实验充分"],
                         "cons": ["理论分析不足"]
                     }
+                }
+            }
+        elif task == 'generate_reading_guide':
+            response = {
+                "status": "success",
+                "output": {
+                    "report": generate_reading_guide_mock()
                 }
             }
         else:

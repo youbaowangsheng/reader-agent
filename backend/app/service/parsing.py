@@ -280,6 +280,8 @@ def parse_pdf(file_path: str) -> Dict[str, Any]:
     current_level = 1
     current_paras: List[str] = []       # 段落列表（每段已合并物理断行）
     current_para_lines: List[str] = []  # 当前段落累积的行
+    current_para_pages: List[int] = []  # 段落级 page（与 current_paras 对齐，供锚点）
+    current_para_page: int = body_start # 当前段落起始页
     last_block = None
     table_buffer: List[str] = []
     start_page = body_start
@@ -288,26 +290,31 @@ def parse_pdf(file_path: str) -> Dict[str, Any]:
         nonlocal table_buffer
         if table_buffer:
             current_paras.append("[TABLE]" + "\n".join(table_buffer))
+            current_para_pages.append(current_para_page)
             table_buffer = []
 
     def flush_para():
         nonlocal current_para_lines
         if current_para_lines:
             current_paras.append(" ".join(current_para_lines))
+            current_para_pages.append(current_para_page)
             current_para_lines = []
 
     def flush_heading(end_page):
-        nonlocal current_paras, start_page, last_block
+        nonlocal current_paras, current_para_pages, start_page, last_block
         flush_table()
         flush_para()
         if current_paras:
+            paragraphs = [{"page": p + 1, "text": t} for p, t in zip(current_para_pages, current_paras)]
             sections.append({
                 "heading": current_heading,
                 "level": current_level,
                 "content": "\n\n".join(current_paras).strip(),
                 "page_range": f"{start_page + 1}-{end_page + 1}",
+                "paragraphs": paragraphs,
             })
         current_paras = []
+        current_para_pages = []
         start_page = end_page
         last_block = None
 
@@ -323,6 +330,7 @@ def parse_pdf(file_path: str) -> Dict[str, Any]:
             if img_ptr < len(page_images) and page_images[img_ptr]["y"] < l.get("y", 0):
                 flush_para()
                 current_paras.append("[IMAGE:" + page_images[img_ptr]["url"] + "]")
+                current_para_pages.append(page_num)
                 img_ptr += 1
                 continue
             # 过滤页眉页脚（完整行）
@@ -362,12 +370,16 @@ def parse_pdf(file_path: str) -> Dict[str, Any]:
                 if _is_table_row(text):
                     # 表格数据行：独立成段，保留行结构（前端等宽渲染）
                     flush_para()
+                    if not table_buffer:
+                        current_para_page = page_num
                     table_buffer.append(text)
                     last_block = None
                 elif (len(text) < 25 and re.search(r"[A-Za-z]", text)
                       and idx + 1 < len(lines) and _is_table_row(lines[idx + 1]["text"])):
                     # 模型名行（下一行是数值行）→ 归入表格
                     flush_para()
+                    if not table_buffer:
+                        current_para_page = page_num
                     table_buffer.append(text)
                     last_block = None
                 else:
@@ -377,6 +389,8 @@ def parse_pdf(file_path: str) -> Dict[str, Any]:
                     blk = l.get("block")
                     if last_block is not None and blk != last_block:
                         flush_para()
+                    if not current_para_lines:
+                        current_para_page = page_num
                     current_para_lines.append(text)
                     last_block = blk
             idx += 1
@@ -385,17 +399,20 @@ def parse_pdf(file_path: str) -> Dict[str, Any]:
         while img_ptr < len(page_images):
             flush_para()
             current_paras.append("[IMAGE:" + page_images[img_ptr]["url"] + "]")
+            current_para_pages.append(page_num)
             img_ptr += 1
 
     # flush 最后一节
     flush_table()
     flush_para()
     if current_paras:
+        paragraphs = [{"page": p + 1, "text": t} for p, t in zip(current_para_pages, current_paras)]
         sections.append({
             "heading": current_heading,
             "level": current_level,
             "content": "\n\n".join(current_paras).strip(),
             "page_range": f"{start_page + 1}-{total_pages}",
+            "paragraphs": paragraphs,
         })
 
     if not sections:
