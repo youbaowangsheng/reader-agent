@@ -346,4 +346,12 @@ p:hover .ask-inline{opacity:1}
 @media (max-width:860px){
   .guide-pdf-aside{position:fixed;right:0;top:0;bottom:0;width:92vw;z-index:50;max-height:none;box-shadow:-4px 0 24px rgba(0,0,0,.15)}
 }
+@media (max-width:640px){
+  .guide-toolbar{padding:10px 12px;flex-wrap:wrap}
+  .guide-toolbar select{max-width:100%;flex:1;min-width:0}
+  .guide-layout{padding:0 14px 60px}
+  .guide-paper-head h1{font-size:20px}
+  .guide-sec-title{margin:22px 0 6px}
+  .guide-stop-say{font-size:14px}
+}
 

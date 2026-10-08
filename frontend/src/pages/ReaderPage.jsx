@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { api } from '../api/client';
-import GuidePdfPanel from '../components/GuidePdfPanel';
+
+// 懒加载 PDF 面板（pdfjs-dist 较大，点击「看原文」才加载）
+const GuidePdfPanel = lazy(() => import('../components/GuidePdfPanel'));
 
 const NODE_ICON = { location: '📍', thought: '💡', question: '🤔', fig: '📊' };
 
@@ -242,12 +244,14 @@ function ReaderPage({ active }) {
 
         {pdfState && (
           <aside className="guide-pdf-aside">
-            <GuidePdfPanel
-              fileUrl={fileUrl}
-              page={pdfState.page}
-              highlight={pdfState.highlight}
-              onClose={() => setPdfState(null)}
-            />
+            <Suspense fallback={<div className="guide-status">PDF 加载中…</div>}>
+              <GuidePdfPanel
+                fileUrl={fileUrl}
+                page={pdfState.page}
+                highlight={pdfState.highlight}
+                onClose={() => setPdfState(null)}
+              />
+            </Suspense>
           </aside>
         )}
       </div>

@@ -9,7 +9,7 @@ import './App.css';
 function App() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [activeTab, setActiveTab] = useState('shelf');
+  const [activeTab, setActiveTab] = useState('reader');
 
   useEffect(() => {
     if (token) {
@@ -62,9 +62,13 @@ function NavBar({ user, activeTab, onTabChange, onLogout }) {
       <div className="nav-left">
         <div className="logo">
           <span className="mark">R</span>
-          Reader <span className="sub">英文论文助手</span>
+          Reader <span className="sub">AI 导读</span>
         </div>
         <div className="nav-tabs">
+          <button
+            className={`nav-tab ${activeTab === 'reader' ? 'active' : ''}`}
+            onClick={() => onTabChange('reader')}
+          >导读</button>
           <button
             className={`nav-tab ${activeTab === 'shelf' ? 'active' : ''}`}
             onClick={() => onTabChange('shelf')}
@@ -73,10 +77,6 @@ function NavBar({ user, activeTab, onTabChange, onLogout }) {
             className={`nav-tab ${activeTab === 'market' ? 'active' : ''}`}
             onClick={() => onTabChange('market')}
           >市场</button>
-          <button
-            className={`nav-tab ${activeTab === 'reader' ? 'active' : ''}`}
-            onClick={() => onTabChange('reader')}
-          >阅读器</button>
         </div>
       </div>
       <div className="nav-right">
