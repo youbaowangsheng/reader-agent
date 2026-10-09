@@ -2,15 +2,15 @@ from typing import Dict, Any, List
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.model.paper import Paper
-from app.service.fipai import FIPAIService
+from app.service.llm import LLMService
 
 
 class ReadingGuideService:
     """AI 导读服务：生成 / 规范化 / 存储 / 重新生成 / 导出。"""
 
-    def __init__(self, db: AsyncSession, fipai: FIPAIService):
+    def __init__(self, db: AsyncSession, llm: LLMService):
         self.db = db
-        self.fipai = fipai
+        self.llm = llm
 
     # ---- 导读生成 ----
 
@@ -28,8 +28,8 @@ class ReadingGuideService:
         paper.reading_guide = {"status": "generating", "version": 1}
         await self.db.commit()
 
-        # 调用 FIPAI 生成
-        raw = await self.fipai.generate_reading_guide(
+        # 调用 LLM 生成
+        raw = await self.llm.generate_reading_guide(
             parsed_doc=parsed_doc,
             source_path=paper.file_url or "",
         )
@@ -94,7 +94,7 @@ class ReadingGuideService:
 
     @staticmethod
     def _extract_highlight(sections: List[Dict], section_index) -> str:
-        """从 section 提取锚点高亮句（FIPAI 未给 highlight 时兜底）。"""
+        """从 section 提取锚点高亮句（LLM 未给 highlight 时兜底）。"""
         try:
             si = int(section_index)
             sec = sections[si]

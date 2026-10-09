@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     openai_base_url: str = "https://api.deepseek.com/v1"
     openai_model: str = "text-embedding-3-small"
 
+    # 直接 LLM（AI 导读等生成；后续可替换为 FIPAI 接入）
+    llm_chat_model: str = "deepseek-chat"
+
     # App
     app_name: str = "Reader Agent Backend"
     debug: bool = False

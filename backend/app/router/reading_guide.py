@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from app.model.database import get_db
 from app.model.paper import Paper
-from app.service.fipai import FIPAIService
+from app.service.llm import LLMService
 from app.service.reading_guide import ReadingGuideService
 from app.core.security import get_current_user, AuthUser
 
@@ -81,8 +81,8 @@ async def _generate_task(paper_id: UUID, force: bool, max_retries: int = 2):
                 await engine.dispose()
                 return
             try:
-                fipai = FIPAIService()
-                service = ReadingGuideService(session, fipai)
+                llm = LLMService()
+                service = ReadingGuideService(session, llm)
                 await service.generate(paper, force=force)
                 await engine.dispose()
                 return
@@ -117,8 +117,8 @@ async def save_engagement(
 ):
     """存用户交互（判断/看法/观点/检测答案），浅合并。"""
     paper = await get_paper(paper_id, user.id, db)
-    fipai = FIPAIService()
-    service = ReadingGuideService(db, fipai)
+    llm = LLMService()
+    service = ReadingGuideService(db, llm)
     data = payload.model_dump(exclude_none=True)
     return await service.save_engagement(paper, data)
 
@@ -131,7 +131,7 @@ async def export_engagement(
 ):
     """导出认同观点 + 看法 + 整体观点为 Markdown。"""
     paper = await get_paper(paper_id, user.id, db)
-    fipai = FIPAIService()
-    service = ReadingGuideService(db, fipai)
+    llm = LLMService()
+    service = ReadingGuideService(db, llm)
     markdown = service.export_engagement(paper)
     return {"markdown": markdown}
