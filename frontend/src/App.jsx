@@ -10,6 +10,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [activeTab, setActiveTab] = useState('reader');
+  const [openPaperId, setOpenPaperId] = useState(null);
 
   useEffect(() => {
     if (token) {
@@ -33,6 +34,12 @@ function App() {
     setToken(null);
   };
 
+  // 书架点击论文 → 切到导读并选中
+  const handleOpenPaper = (paperId) => {
+    setOpenPaperId(paperId);
+    setActiveTab('reader');
+  };
+
   if (!token) {
     return <LoginPage onLogin={handleLogin} />;
   }
@@ -47,9 +54,13 @@ function App() {
           onLogout={handleLogout}
         />
         <div className="content">
-          <ShelfPage active={activeTab === 'shelf'} />
-          <MarketPage active={activeTab === 'market'} />
-          <ReaderPage active={activeTab === 'reader'} />
+          <ShelfPage active={activeTab === 'shelf'} onOpenPaper={handleOpenPaper} />
+          <MarketPage active={activeTab === 'market'} onOpenPaper={handleOpenPaper} />
+          <ReaderPage
+            active={activeTab === 'reader'}
+            openPaperId={openPaperId}
+            onPaperConsumed={() => setOpenPaperId(null)}
+          />
         </div>
       </div>
     </Router>

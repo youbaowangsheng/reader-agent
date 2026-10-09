@@ -6,7 +6,7 @@ const GuidePdfPanel = lazy(() => import('../components/GuidePdfPanel'));
 
 const NODE_ICON = { location: '📍', thought: '💡', question: '🤔', fig: '📊' };
 
-function ReaderPage({ active }) {
+function ReaderPage({ active, openPaperId, onPaperConsumed }) {
   const [papers, setPapers] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [paperDetail, setPaperDetail] = useState(null);
@@ -44,6 +44,29 @@ function ReaderPage({ active }) {
     }).catch(() => {});
   }, [selectedId]);
 
+  // 书架/市场点击论文 → 选中
+  useEffect(() => {
+    if (openPaperId) {
+      setSelectedId(openPaperId);
+      onPaperConsumed?.();
+    }
+  }, [openPaperId]);
+
+  // 解析中 → 轮询直到 ready/error
+  useEffect(() => {
+    if (!selectedId || !paperDetail) return;
+    if (paperDetail.status !== 'pending' && paperDetail.status !== 'processing') return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await api.getPaper(selectedId);
+        setPaperDetail(res.data);
+        setGuide(res.data.reading_guide || null);
+        if (res.data.status === 'ready' || res.data.status === 'error') clearInterval(timer);
+      } catch (_) {}
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [paperDetail?.status, selectedId]);
+
   // 触发生成导读（未生成时）
   useEffect(() => {
     if (!selectedId || !paperDetail) return;
@@ -67,6 +90,23 @@ function ReaderPage({ active }) {
     }, 4000);
     return () => clearInterval(timer);
   }, [guide?.status, selectedId]);
+
+  // 上传 PDF → 解析 → 选中
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const res = await api.uploadPaper(file);
+      const paperId = res.data.id;
+      try { await api.parsePaper(paperId); } catch (_) {}
+      const papersRes = await api.getPapers();
+      setPapers(papersRes.data);
+      setSelectedId(paperId);
+      e.target.value = '';
+    } catch (err) {
+      alert('上传失败：' + (err.response?.data?.detail || err.message));
+    }
+  };
 
   const saveEngagement = (patch) => {
     setEngagement(prev => {
@@ -148,6 +188,10 @@ function ReaderPage({ active }) {
           <option value="">选择一篇论文…</option>
           {papers.map(p => <option key={p.id} value={p.id}>{p.filename}</option>)}
         </select>
+        <label className="btn-ghost" style={{ cursor: 'pointer' }}>
+          📄 上传 PDF
+          <input type="file" accept=".pdf,.epub" onChange={handleUpload} style={{ display: 'none' }} />
+        </label>
         <div className="spacer" />
         {status === 'generated' && (
           <>

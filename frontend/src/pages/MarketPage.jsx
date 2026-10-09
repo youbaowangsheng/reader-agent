@@ -43,7 +43,7 @@ function MarketPage({ active }) {
             <div className="tag">{rec.tag}</div>
             <div className="title">{rec.title}</div>
             <div className="subtitle">{rec.subtitle}</div>
-            <button className="btn-add">+ 收入书架</button>
+            <button className="btn-add" onClick={() => alert('市场功能开发中 —— 可先到「书架」上传 PDF')}>+ 收入书架</button>
           </div>
         ))}
       </div>
@@ -58,7 +58,7 @@ function MarketPage({ active }) {
               <span style={{ color: 'var(--text-4)', fontSize: '13px' }}>· {paper.year}</span>
               <span style={{ color: 'var(--text-4)', fontSize: '13px' }}>· {paper.annotators}人批注</span>
             </div>
-            <button className="btn-add-light">+ 加入书架</button>
+            <button className="btn-add-light" onClick={() => alert('市场功能开发中 —— 可先到「书架」上传 PDF')}>+ 加入书架</button>
           </div>
         ))}
       </div>

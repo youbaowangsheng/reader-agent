@@ -1,21 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api/client';
 
-function ShelfPage({ active }) {
+function ShelfPage({ active, onOpenPaper }) {
   const [papers, setPapers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPaper, setSelectedPaper] = useState(null);
-
-  useEffect(() => {
-    if (active) loadData();
-  }, [active]);
+  const [uploading, setUploading] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const res = await api.getPapers();
       setPapers(res.data);
-      if (res.data.length > 0 && !selectedPaper) setSelectedPaper(res.data[0]);
     } catch (err) {
       console.error('Failed to load papers:', err);
     } finally {
@@ -23,13 +18,33 @@ function ShelfPage({ active }) {
     }
   };
 
-  const demoProjects = [
-    { id: 'proj-1', name: '2025 综述写作', meta: `${papers.filter(p => p.status === 'ready').length} 篇文献 · 更新于 2 小时前`, papers: papers.filter(p => p.status === 'ready').slice(0, 2) },
-    { id: 'proj-2', name: '大模型推理优化', meta: `${papers.length} 篇文献 · 更新于 昨天`, papers: papers.filter(p => p.status === 'ready').slice(2, 4) },
-    { id: 'proj-3', name: '组会下周讨论', meta: '2 篇文献 · 更新于 3 天前', papers: [] }
-  ];
+  useEffect(() => {
+    if (active) loadData();
+  }, [active]);
 
-  const unreadPapers = papers.filter(p => !p.filename?.includes('综述') && !p.filename?.includes('推理'));
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const res = await api.uploadPaper(file);
+      try { await api.parsePaper(res.data.id); } catch (_) {}
+      await loadData();
+    } catch (err) {
+      alert('上传失败：' + (err.response?.data?.detail || err.message));
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const statusLabel = (s) => {
+    if (s === 'ready') return '已就绪';
+    if (s === 'parsed' || s === 'processing') return '解析中';
+    if (s === 'pending') return '待解析';
+    if (s === 'error') return '解析失败';
+    return s || '未知';
+  };
 
   if (!active) return null;
 
@@ -37,35 +52,42 @@ function ShelfPage({ active }) {
     <div id="page-shelf" className="page active">
       <div className="shelf-header">
         <h2>我的书架</h2>
-        <button className="btn-primary">新建项目</button>
+        <label className="btn-primary" style={{ cursor: 'pointer' }}>
+          {uploading ? '上传中…' : '📄 上传 PDF'}
+          <input type="file" accept=".pdf,.epub" onChange={handleUpload} style={{ display: 'none' }} />
+        </label>
       </div>
+
       {loading ? (
         <div className="loading">加载中…</div>
+      ) : papers.length === 0 ? (
+        <div className="empty-state" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-4)' }}>
+          还没有论文 —— 点右上角「📄 上传 PDF」开始
+        </div>
       ) : (
-        <>
-          <div className="project-grid">
-            {demoProjects.map(proj => (
-              <div key={proj.id} className="project-card">
-                <div className="title">{proj.name}</div>
-                <div className="meta">{proj.meta}</div>
-                {proj.papers.map((p, i) => (
-                  <div
-                    key={p.id || i}
-                    className="paper-item"
-                    onClick={() => {
-                      setSelectedPaper(p);
-                      window.dispatchEvent(new CustomEvent('reader:openPaper', { detail: p }));
-                    }}
-                  >
-                    <span>{p.filename || '未命名论文'}</span>
-                    <span><span className="density-bar"><span className="fill" style={{ width: '60%' }}></span></span></span>
-                  </div>
-                ))}
+        <div className="shelf-paper-list">
+          {papers.map(p => (
+            <div
+              key={p.id}
+              className="shelf-paper-item"
+              onClick={() => onOpenPaper?.(p.id)}
+            >
+              <div className="sp-info">
+                <div className="sp-name">{p.filename}</div>
+                <div className="sp-meta">
+                  <span className={`sp-status st-${p.status}`}>{statusLabel(p.status)}</span>
+                  <span> · {new Date(p.created_at).toLocaleDateString()}</span>
+                </div>
               </div>
-            ))}
-          </div>
-          <div className="inbox-area">未整理草稿箱（{unreadPapers.length} 篇待分类）—— 点击论文卡片阅读后自动归类</div>
-        </>
+              <button
+                className="btn-add-light"
+                onClick={(e) => { e.stopPropagation(); onOpenPaper?.(p.id); }}
+              >
+                打开导读 →
+              </button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

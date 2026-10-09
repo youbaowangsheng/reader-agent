@@ -355,3 +355,16 @@ p:hover .ask-inline{opacity:1}
   .guide-stop-say{font-size:14px}
 }
 
+/* 书架论文列表 */
+.shelf-paper-list{display:flex;flex-direction:column;gap:10px;padding:12px 0}
+.shelf-paper-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:#fff;box-shadow:var(--border);border-radius:10px;cursor:pointer;transition:background .12s}
+.shelf-paper-item:hover{background:var(--bg-hover)}
+.sp-info{min-width:0;flex:1}
+.sp-name{font-size:14px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sp-meta{font-size:12px;color:var(--text-4);margin-top:3px;display:flex;align-items:center;gap:4px}
+.sp-status{font-size:11px;padding:1px 7px;border-radius:5px;font-weight:600}
+.st-ready{background:#f0fdf4;color:#15803d}
+.st-parsed,.st-processing{background:#fffbeb;color:#b45309}
+.st-pending{background:var(--bg-hover);color:var(--text-3)}
+.st-error{background:#fef2f2;color:#b91c1c}
+
