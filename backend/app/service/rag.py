@@ -5,7 +5,7 @@ import hashlib
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
-from sqlalchemy import select, text
+from sqlalchemy import select, text, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from openai import AsyncOpenAI
 
@@ -67,6 +67,11 @@ class RAGService:
 
     async def build_index(self, paper_id: str, parsed_doc: Dict[str, Any]) -> int:
         """Chunk document, generate embeddings, store in pgvector. Returns chunk count."""
+        # 清理旧 chunks + vectors（幂等重建，避免重复解析时的唯一约束冲突）
+        await self.db.execute(delete(PaperChunkVector).where(PaperChunkVector.paper_id == paper_id))
+        await self.db.execute(delete(PaperChunk).where(PaperChunk.paper_id == paper_id))
+        await self.db.commit()
+
         chunk_count = 0
 
         for sec in parsed_doc.get("sections", []):
@@ -164,12 +169,17 @@ class RAGService:
             # Fallback to hash-based only if no API key configured (not recommended)
             return self._hash_embedding(text)
 
-        client = get_openai_client()
-        response = await client.embeddings.create(
-            model=settings.openai_model,
-            input=text[:8192],  # OpenAI has 8192 token limit
-        )
-        return response.data[0].embedding
+        try:
+            client = get_openai_client()
+            response = await client.embeddings.create(
+                model=settings.openai_model,
+                input=text[:8192],  # OpenAI has 8192 token limit
+            )
+            return response.data[0].embedding
+        except Exception as e:
+            # embedding API 失败（如模型不支持/404）→ 回退 hash，不阻塞解析
+            print(f"Embedding API failed, fallback to hash: {str(e)[:120]}")
+            return self._hash_embedding(text)
 
     @staticmethod
     def _hash_embedding(text: str, dim: int = 1536) -> List[float]:
