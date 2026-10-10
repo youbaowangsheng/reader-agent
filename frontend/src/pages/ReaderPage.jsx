@@ -13,6 +13,7 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
   const [guide, setGuide] = useState(null);
   const [engagement, setEngagement] = useState({});
   const [pdfState, setPdfState] = useState(null); // {page, highlight}
+  const [pdfPanelOpen, setPdfPanelOpen] = useState(false); // 移动端全屏 PDF 开关
   const [noteDraft, setNoteDraft] = useState({});
   const [myView, setMyView] = useState('');
   const [regenerating, setRegenerating] = useState(false);
@@ -120,7 +121,10 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
   };
 
   const openPdf = (anchor) => {
-    if (anchor?.page) setPdfState({ page: anchor.page, highlight: anchor.highlight || '' });
+    if (anchor?.page) {
+      setPdfState({ page: anchor.page, highlight: anchor.highlight || '' });
+      setPdfPanelOpen(true);
+    }
   };
 
   const regenerate = () => {
@@ -280,13 +284,14 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
         </main>
 
         {/* 右列：原文预览 */}
-        <aside className="guide-preview">
+        <aside className={`guide-preview ${pdfPanelOpen ? 'open' : ''}`}>
           {selectedId && fileUrl ? (
             <Suspense fallback={<div className="guide-status">PDF 加载中…</div>}>
               <GuidePdfPanel
                 fileUrl={fileUrl}
                 page={previewPage}
                 highlight={previewHighlight}
+                onClose={() => setPdfPanelOpen(false)}
               />
             </Suspense>
           ) : (
