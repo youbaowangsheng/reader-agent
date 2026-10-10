@@ -265,6 +265,7 @@ p:hover .ask-inline{opacity:1}
 .guide-preview{width:400px;flex-shrink:0;position:sticky;top:64px;max-height:calc(100vh - 84px);overflow:auto}
 .guide-preview-empty{display:flex;align-items:center;justify-content:center;height:300px;color:var(--text-4);font-size:13px;background:#fff;box-shadow:var(--border);border-radius:12px}
 .guide-actions{display:flex;gap:10px;margin:14px 0 0}
+.guide-mobile-back{display:none}
 
 /* PDF 翻页 + 全屏按钮 */
 .guide-pdf-btn{background:#fff;border:1px solid var(--border-strong);border-radius:6px;min-width:26px;height:26px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--text-2);padding:0 6px}
@@ -423,15 +424,21 @@ p:hover .ask-inline{opacity:1}
   .guide-preview{width:300px}
 }
 
-/* 移动端响应式：待读列表变横向条，原文预览变全屏弹出 */
+/* 移动端响应式：两阶段导航（先列表 → 点进详情），原文预览全屏弹出 */
 @media (max-width: 900px) {
-  .guide-three-col{flex-direction:column;gap:12px;padding:0 12px 60px}
+  .guide-three-col{flex-direction:column;gap:0;padding:0;align-items:stretch}
   .guide-three-col .guide-main{max-width:none}
-  .guide-waitlist{position:static;width:100%;max-height:none;display:flex;align-items:center;gap:6px;overflow-x:auto;padding:8px}
-  .guide-waitlist-head{flex-shrink:0;margin:0 2px 0 0}
+  /* 待读列表：移动端是垂直全屏列表 */
+  .guide-waitlist{position:static;width:100%;max-height:none;display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:12px;border-radius:0;box-shadow:none}
+  .guide-waitlist.has-selection{display:none}
+  .guide-waitlist-head{flex-shrink:0;margin:0}
   .guide-waitlist-head .count{display:none}
-  .guide-waitlist-empty{display:none}
-  .guide-waitlist-item{white-space:nowrap;width:auto;flex-shrink:0;padding:6px 12px}
+  .guide-waitlist-empty{display:block;padding:30px 6px;font-size:13px}
+  .guide-waitlist-item{white-space:normal;width:100%;text-align:left;padding:12px 10px;font-size:14px}
+  /* 导读：未选论文时隐藏，选中后显示 */
+  .guide-main{display:none}
+  .guide-main.has-selection{display:block;padding:0 12px 60px}
+  .guide-mobile-back{display:flex;align-items:center;gap:4px;padding:10px 0;border:none;background:none;color:var(--accent);font-size:14px;cursor:pointer}
   .guide-preview{display:none;position:fixed;inset:0;width:100%;max-height:none;z-index:100;background:rgba(0,0,0,.6);padding:8px}
   .guide-preview.open{display:block}
   .guide-preview .guide-pdf-panel{max-height:100%;height:100%}

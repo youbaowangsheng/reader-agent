@@ -42,16 +42,12 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
     if (_papersCache) {
       setPapers(_papersCache);
       setPapersLoading(false);
-      const ready = _papersCache.filter(p => p.status === 'ready');
-      if (ready.length > 0 && !selectedId) setSelectedId(ready[0].id);
       return;
     }
     setPapersLoading(true);
     api.getPapers().then(res => {
       _papersCache = res.data;
       setPapers(res.data);
-      const ready = res.data.filter(p => p.status === 'ready');
-      if (ready.length > 0 && !selectedId) setSelectedId(ready[0].id);
     }).catch(() => {}).finally(() => setPapersLoading(false));
   }, [active]);
 
@@ -207,7 +203,7 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
     <div className="guide-page">
       <div className="guide-three-col" ref={mainRef}>
         {/* 左列：待读列表 */}
-        <aside className={`guide-waitlist ${waitlistCollapsed ? 'collapsed' : ''}`}>
+        <aside className={`guide-waitlist ${waitlistCollapsed ? 'collapsed' : ''} ${selectedId ? 'has-selection' : ''}`}>
           {waitlistCollapsed ? (
             <button className="guide-waitlist-toggle" onClick={() => toggleWaitlist(false)} title="展开待读列表">»</button>
           ) : (
@@ -242,7 +238,10 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
         </aside>
 
         {/* 中列：AI 导读 */}
-        <main className="guide-main">
+        <main className={`guide-main ${selectedId ? 'has-selection' : ''}`}>
+          {selectedId && (
+            <button className="guide-mobile-back" onClick={() => setSelectedId(null)}>← 返回列表</button>
+          )}
           <div className="guide-paper-head">
             <div className="guide-tag">AI 导读</div>
             <h1>{title || '选择左侧论文开始导读'}</h1>
