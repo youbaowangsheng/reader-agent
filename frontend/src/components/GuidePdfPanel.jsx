@@ -26,7 +26,7 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
         if (_pdfCache && _pdfCacheUrl === fileUrl) {
           doc = _pdfCache;
         } else {
-          doc = await pdfjsLib.getDocument(fileUrl).promise;
+          doc = await pdfjsLib.getDocument({ url: fileUrl }).promise;
           _pdfCache = doc;
           _pdfCacheUrl = fileUrl;
         }
