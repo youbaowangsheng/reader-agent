@@ -35,6 +35,7 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
     setGuide(null);
     setEngagement({});
     setPdfState(null);
+    setPdfPanelOpen(false);
     setMyView('');
     setNoteDraft({});
     api.getPaper(selectedId).then(res => {
@@ -283,9 +284,9 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
           )}
         </main>
 
-        {/* 右列：原文预览 */}
-        <aside className={`guide-preview ${pdfPanelOpen ? 'open' : ''}`}>
-          {selectedId && fileUrl ? (
+        {/* 右列：原文预览（点「看原文」才加载，避免常驻卡顿） */}
+        {pdfPanelOpen && selectedId && fileUrl && (
+          <aside className="guide-preview open">
             <Suspense fallback={<div className="guide-status">PDF 加载中…</div>}>
               <GuidePdfPanel
                 fileUrl={fileUrl}
@@ -294,10 +295,8 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
                 onClose={() => setPdfPanelOpen(false)}
               />
             </Suspense>
-          ) : (
-            <div className="guide-preview-empty">原文预览</div>
-          )}
-        </aside>
+          </aside>
+        )}
       </div>
     </div>
   );

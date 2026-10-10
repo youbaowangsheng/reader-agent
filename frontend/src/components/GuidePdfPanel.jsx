@@ -15,6 +15,28 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
   const [scale, setScale] = useState(1.4);
   const [pageInfo, setPageInfo] = useState(null);
   const [error, setError] = useState('');
+  const [currentPage, setCurrentPage] = useState(page || 1);
+  const containerRef = useRef(null);
+
+  // 锚点 page 变化时同步当前页
+  useEffect(() => {
+    if (page) setCurrentPage(page);
+  }, [page]);
+
+  const goPage = (delta) => {
+    setCurrentPage(p => {
+      const total = pdf?.numPages || p;
+      return Math.max(1, Math.min(total, p + delta));
+    });
+  };
+
+  const toggleFullscreen = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  };
 
   // 加载 PDF 文档（缓存）
   useEffect(() => {
@@ -41,11 +63,11 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
 
   // 渲染指定页 + 高亮
   const render = useCallback(async () => {
-    if (!pdf || !page) return;
+    if (!pdf || !currentPage) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     try {
-      const pdfPage = await pdf.getPage(page);
+      const pdfPage = await pdf.getPage(currentPage);
       const baseViewport = pdfPage.getViewport({ scale: 1 });
       const containerWidth = canvas.parentElement?.clientWidth || 700;
       const s = Math.max(0.8, containerWidth / baseViewport.width);
@@ -57,7 +79,7 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
       const ctx = canvas.getContext('2d');
       await pdfPage.render({ canvasContext: ctx, viewport }).promise;
 
-      setPageInfo({ num: page, total: pdf.numPages });
+      setPageInfo({ num: currentPage, total: pdf.numPages });
 
       // 高亮文本
       if (highlight) {
@@ -70,15 +92,18 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
     } catch (e) {
       setError('渲染失败：' + (e?.message || ''));
     }
-  }, [pdf, page, highlight]);
+  }, [pdf, currentPage, highlight]);
 
   useEffect(() => { render(); }, [render]);
 
   return (
-    <div className="guide-pdf-panel">
+    <div className="guide-pdf-panel" ref={containerRef}>
       <div className="guide-pdf-head">
         <span className="guide-pdf-title">PDF 原文</span>
         {pageInfo && <span className="guide-pdf-page">第 {pageInfo.num} / {pageInfo.total} 页</span>}
+        <button className="guide-pdf-btn" onClick={() => goPage(-1)} title="上一页">‹</button>
+        <button className="guide-pdf-btn" onClick={() => goPage(1)} title="下一页">›</button>
+        <button className="guide-pdf-btn" onClick={toggleFullscreen} title="全屏">⛶</button>
         {onClose && <button className="guide-pdf-close" onClick={onClose} title="关闭">✕</button>}
       </div>
       {highlight && (
@@ -107,6 +132,13 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
           </div>
         )}
       </div>
+      {pageInfo && (
+        <div className="guide-pdf-footer">
+          <button className="guide-pdf-btn" onClick={() => goPage(-1)} disabled={currentPage <= 1}>‹ 上一页</button>
+          <span className="guide-pdf-footer-page">{currentPage} / {pageInfo.total}</span>
+          <button className="guide-pdf-btn" onClick={() => goPage(1)} disabled={currentPage >= pageInfo.total}>下一页 ›</button>
+        </div>
+      )}
     </div>
   );
 }

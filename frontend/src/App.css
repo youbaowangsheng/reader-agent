@@ -247,7 +247,7 @@ p:hover .ask-inline{opacity:1}
 .guide-pdf-aside{width:430px;flex-shrink:0;position:sticky;top:64px;max-height:calc(100vh - 84px);overflow:auto}
 
 /* 三列布局：待读列表 + AI导读 + 原文预览 */
-.guide-three-col{display:flex;gap:16px;padding:0 16px 60px;align-items:flex-start;justify-content:center}
+.guide-three-col{display:flex;gap:16px;padding:0 16px 60px;align-items:flex-start;justify-content:center;height:100%;overflow-y:auto}
 .guide-three-col .guide-main{max-width:680px}
 .guide-waitlist{width:200px;flex-shrink:0;position:sticky;top:64px;max-height:calc(100vh - 84px);overflow:auto;background:#fff;box-shadow:var(--border);border-radius:12px;padding:12px}
 .guide-waitlist-head{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px}
@@ -259,6 +259,15 @@ p:hover .ask-inline{opacity:1}
 .guide-preview{width:400px;flex-shrink:0;position:sticky;top:64px;max-height:calc(100vh - 84px);overflow:auto}
 .guide-preview-empty{display:flex;align-items:center;justify-content:center;height:300px;color:var(--text-4);font-size:13px;background:#fff;box-shadow:var(--border);border-radius:12px}
 .guide-actions{display:flex;gap:10px;margin:14px 0 0}
+
+/* PDF 翻页 + 全屏按钮 */
+.guide-pdf-btn{background:#fff;border:1px solid var(--border-strong);border-radius:6px;min-width:26px;height:26px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--text-2);padding:0 6px}
+.guide-pdf-btn:hover{background:var(--bg-hover)}
+.guide-pdf-btn:disabled{opacity:.4;cursor:not-allowed}
+.guide-pdf-footer{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px;border-top:1px solid var(--border-strong);background:var(--bg-subtle)}
+.guide-pdf-footer-page{font-size:12px;color:var(--text-3)}
+.guide-pdf-panel:fullscreen{background:#525659;max-height:none;height:100%}
+.guide-pdf-panel:fullscreen .guide-pdf-body{flex:1;display:flex;align-items:center;justify-content:center}
 
 .guide-paper-head{padding:28px 0 4px}
 .guide-tag{font-size:12px;color:var(--accent);font-weight:600;text-transform:uppercase;letter-spacing:.8px}
