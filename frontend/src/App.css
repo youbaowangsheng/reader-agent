@@ -368,6 +368,9 @@ p:hover .ask-inline{opacity:1}
 .guide-pdf-canvas-wrap canvas{display:block;max-width:100%;height:auto;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 .guide-pdf-hl{position:absolute;background:rgba(254,240,138,.5);border-radius:2px;pointer-events:none;mix-blend-mode:multiply}
 .guide-pdf-error{padding:30px;text-align:center;color:#fff;font-size:13px}
+.guide-pdf-loading{display:flex;align-items:center;justify-content:center;gap:10px;height:100%;min-height:240px;color:#d4d4d4;font-size:13px}
+.guide-pdf-spinner{width:22px;height:22px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:guide-spin .8s linear infinite}
+@keyframes guide-spin{to{transform:rotate(360deg)}}
 
 @media (max-width:1100px){
   .guide-pdf-aside{width:360px}
@@ -408,10 +411,7 @@ p:hover .ask-inline{opacity:1}
 .mb-name{font-size:14px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mb-meta{font-size:12px;color:var(--text-4);margin-top:2px}
 
-/* 桌面：原文预览常驻，隐藏关闭按钮 */
-@media (min-width: 901px) {
-  .guide-pdf-close{display:none}
-}
+/* 原文预览关闭按钮始终显示（点「看原文」打开后可关闭回到导读） */
 
 /* AI导读自适应（中间断点） */
 @media (max-width: 1300px) {

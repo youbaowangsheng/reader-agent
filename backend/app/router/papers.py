@@ -86,7 +86,7 @@ async def list_papers(
     stmt = (
         select(Paper)
         .where(Paper.user_id == user.id)
-        .order_by(Paper.created_at.desc())
+        .order_by(Paper.last_read_at.desc().nullslast(), Paper.created_at.desc())
         .limit(limit)
         .offset(offset)
     )
@@ -108,6 +108,24 @@ async def get_paper(
     if not paper:
         raise HTTPException(404, "Paper not found")
     return PaperDetail.model_validate(paper)
+
+
+@router.post("/{paper_id}/read")
+async def mark_read(
+    paper_id: UUID,
+    user: AuthUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """记录最后阅读时间（用于待读列表按阅读时间排序）。"""
+    from datetime import datetime, timezone
+    stmt = select(Paper).where(Paper.id == paper_id, Paper.user_id == user.id)
+    result = await db.execute(stmt)
+    paper = result.scalar_one_or_none()
+    if not paper:
+        raise HTTPException(404, "Paper not found")
+    paper.last_read_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"paper_id": str(paper_id), "last_read_at": paper.last_read_at.isoformat()}
 
 
 @router.delete("/{paper_id}", response_model=PaperDeleteResponse)

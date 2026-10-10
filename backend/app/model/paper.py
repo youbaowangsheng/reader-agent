@@ -22,6 +22,7 @@ class Paper(Base):
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    last_read_at = Column(DateTime(timezone=True), nullable=True)  # 最后阅读时间（待读列表排序）
 
     # Relationships
     notes = relationship("PaperNote", back_populates="paper", uselist=False, cascade="all, delete-orphan")

@@ -66,6 +66,8 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
     setQuizSubmitted(false);
     setMyView('');
     setNoteDraft({});
+    // 记录阅读时间（待读列表按最后阅读时间排序）
+    api.markRead(selectedId).then(() => { _papersCache = null; }).catch(() => {});
     api.getPaper(selectedId).then(res => {
       const d = res.data;
       setPaperDetail(d);

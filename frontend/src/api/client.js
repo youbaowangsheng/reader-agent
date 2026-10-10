@@ -24,6 +24,7 @@ api.getMe = () => api.get('/auth/me');
 // Papers
 api.getPapers = () => api.get('/papers');
 api.getPaper = (id) => api.get(`/papers/${id}`);
+api.markRead = (id) => api.post(`/papers/${id}/read`);
 api.uploadPaper = async (file, onProgress) => {
   const formData = new FormData();
   formData.append('file', file);
