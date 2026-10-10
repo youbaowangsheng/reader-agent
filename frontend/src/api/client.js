@@ -68,4 +68,8 @@ api.getSessionMemory = (paperId, sessionId) => api.get(`/papers/${paperId}/sessi
 api.addSessionMemory = (paperId, sessionId, turn) => api.post(`/papers/${paperId}/sessions/${sessionId}/memory`, turn);
 api.clearSessionMemory = (paperId, sessionId) => api.delete(`/papers/${paperId}/sessions/${sessionId}/memory`);
 
+// Market (GitHub 图书)
+api.getMarketBooks = () => api.get('/market/books');
+api.importBook = (pdfPath, filename) => api.post('/market/import', { pdf_path: pdfPath, filename });
+
 export { api };

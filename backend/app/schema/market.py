@@ -18,3 +18,8 @@ class MarketSearchRequest(BaseModel):
 class MarketSearchResponse(BaseModel):
     query: str
     results: List[PaperRecommendItem]
+
+
+class BookImportRequest(BaseModel):
+    pdf_path: str
+    filename: str

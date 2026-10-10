@@ -1,67 +1,96 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { api } from '../api/client';
 
-function MarketPage({ active }) {
-  const [searchQuery, setSearchQuery] = useState('');
+function MarketPage({ active, onOpenPaper }) {
+  const [categories, setCategories] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [importing, setImporting] = useState({});
+  const [imported, setImported] = useState({});
 
-  const recommendations = [
-    { tag: '效率优化', title: 'PagedAttention v2', subtitle: '刚出炉 · 12人正在读' },
-    { tag: '理论分析', title: '稀疏注意力边界', subtitle: '你可能会质疑它的实验' },
-    { tag: '多模态', title: 'CLIP 跨语言变体', subtitle: '隔壁实验室上周发的' }
-  ];
+  useEffect(() => {
+    if (active) loadBooks();
+  }, [active]);
 
-  const hotPapers = [
-    { title: 'Retrospective Attention', year: '2024', annotators: 23 },
-    { title: 'LoRA 微调极限', year: '2024', annotators: 17 },
-    { title: 'Transformer 数学本质', year: '2023', annotators: 9 }
-  ];
+  const loadBooks = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.getMarketBooks();
+      setCategories(res.data.categories || []);
+      setTotal(res.data.total || 0);
+    } catch (err) {
+      setError('加载失败：' + (err.response?.data?.detail || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatSize = (bytes) => {
+    if (!bytes) return '';
+    if (bytes > 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+    return (bytes / 1024).toFixed(0) + ' KB';
+  };
+
+  const handleImport = async (book) => {
+    setImporting(prev => ({ ...prev, [book.filename]: true }));
+    try {
+      const res = await api.importBook(book.pdf_path, book.filename);
+      setImported(prev => ({ ...prev, [book.filename]: res.data.id }));
+    } catch (err) {
+      alert('下载失败：' + (err.response?.data?.detail || err.message));
+    } finally {
+      setImporting(prev => ({ ...prev, [book.filename]: false }));
+    }
+  };
 
   if (!active) return null;
 
   return (
-    <div id="page-market" className="page">
+    <div id="page-market" className="page active">
       <div className="market-hero">
-        <div style={{ flex: 1 }}>
-          <h3>找论文</h3>
-          <p>支持 DOI / PDF / 链接</p>
-        </div>
-        <input
-          className="big-input"
-          placeholder="例如：10.48550/arXiv.2401.12345 或拖拽文件…"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-        />
+        <h3>英语杂志书库</h3>
+        <p>共 {total} 期 · 来自 GitHub 仓库，下载到书架后自动解析生成 AI 导读</p>
       </div>
 
-      <div className="section-header">
-        <h4>AI 推荐橱窗</h4>
-        <span>基于你的「大模型推理」项目</span>
-      </div>
-
-      <div className="rec-list">
-        {recommendations.map((rec, i) => (
-          <div key={i} className="rec-item">
-            <div className="tag">{rec.tag}</div>
-            <div className="title">{rec.title}</div>
-            <div className="subtitle">{rec.subtitle}</div>
-            <button className="btn-add" onClick={() => alert('市场功能开发中 —— 可先到「书架」上传 PDF')}>+ 收入书架</button>
-          </div>
-        ))}
-      </div>
-
-      <h4 style={{ margin: '20px 0 12px', color: 'var(--text)' }}>共享预印本池 · 热读榜</h4>
-
-      <div className="hot-list">
-        {hotPapers.map((paper, i) => (
-          <div key={i} className="hot-item">
-            <div className="info">
-              <strong>{paper.title}</strong>
-              <span style={{ color: 'var(--text-4)', fontSize: '13px' }}>· {paper.year}</span>
-              <span style={{ color: 'var(--text-4)', fontSize: '13px' }}>· {paper.annotators}人批注</span>
+      {loading ? (
+        <div className="loading">加载中…</div>
+      ) : error ? (
+        <div className="empty-state" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-4)' }}>{error}</div>
+      ) : (
+        categories.map(cat => (
+          <div key={cat.category} className="market-cat">
+            <div className="market-cat-head">
+              <h4>{cat.name}</h4>
+              <span>{cat.books.length} 期</span>
             </div>
-            <button className="btn-add-light" onClick={() => alert('市场功能开发中 —— 可先到「书架」上传 PDF')}>+ 加入书架</button>
+            <div className="market-book-list">
+              {cat.books.map(book => (
+                <div key={book.pdf_path} className="market-book-item">
+                  <div className="mb-info">
+                    <div className="mb-name">{book.filename.replace(/\.pdf$/i, '')}</div>
+                    <div className="mb-meta">{book.issue} · {formatSize(book.size)}</div>
+                  </div>
+                  {imported[book.filename] ? (
+                    <button className="btn-add-light" onClick={() => onOpenPaper?.(imported[book.filename])}>
+                      已在书架 · 打开 →
+                    </button>
+                  ) : (
+                    <button
+                      className="btn-add"
+                      disabled={importing[book.filename]}
+                      onClick={() => handleImport(book)}
+                    >
+                      {importing[book.filename] ? '下载中…' : '↓ 下载到书架'}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
+        ))
+      )}
     </div>
   );
 }
