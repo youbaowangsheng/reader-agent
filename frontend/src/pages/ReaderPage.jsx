@@ -40,7 +40,7 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
     const t1 = setTimeout(scrollTop, 200);
     const t2 = setTimeout(scrollTop, 600);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [selectedId, status]);
+  }, [selectedId, guide?.status]);
 
   // 加载论文列表
   useEffect(() => {
