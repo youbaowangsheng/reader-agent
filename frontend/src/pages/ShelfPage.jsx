@@ -5,6 +5,7 @@ function ShelfPage({ active, onOpenPaper }) {
   const [papers, setPapers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [reading, setReading] = useState({}); // paperId -> bool
 
   const loadData = async () => {
     setLoading(true);
@@ -22,13 +23,21 @@ function ShelfPage({ active, onOpenPaper }) {
     if (active) loadData();
   }, [active]);
 
+  // 有解析中的论文时，轮询刷新
+  useEffect(() => {
+    if (!active) return;
+    const hasProcessing = papers.some(p => p.status === 'processing' || p.status === 'parsed');
+    if (!hasProcessing) return;
+    const timer = setInterval(loadData, 4000);
+    return () => clearInterval(timer);
+  }, [papers, active]);
+
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
     try {
-      const res = await api.uploadPaper(file);
-      try { await api.parsePaper(res.data.id); } catch (_) {}
+      await api.uploadPaper(file);
       await loadData();
     } catch (err) {
       alert('上传失败：' + (err.response?.data?.detail || err.message));
@@ -38,10 +47,22 @@ function ShelfPage({ active, onOpenPaper }) {
     }
   };
 
+  const handleAiRead = async (paperId) => {
+    setReading(prev => ({ ...prev, [paperId]: true }));
+    try {
+      await api.parsePaper(paperId);
+      await loadData();
+    } catch (err) {
+      alert('解析触发失败：' + (err.response?.data?.detail || err.message));
+    } finally {
+      setReading(prev => ({ ...prev, [paperId]: false }));
+    }
+  };
+
   const statusLabel = (s) => {
     if (s === 'ready') return '已就绪';
     if (s === 'parsed' || s === 'processing') return '解析中';
-    if (s === 'pending') return '待解析';
+    if (s === 'pending') return '待 AI 阅读';
     if (s === 'error') return '解析失败';
     return s || '未知';
   };
@@ -62,7 +83,7 @@ function ShelfPage({ active, onOpenPaper }) {
         <div className="loading">加载中…</div>
       ) : papers.length === 0 ? (
         <div className="empty-state" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-4)' }}>
-          还没有论文 —— 点右上角「📄 上传 PDF」开始
+          还没有论文 —— 点右上角「📄 上传 PDF」或到「市场」下载
         </div>
       ) : (
         <div className="shelf-paper-list">
@@ -70,7 +91,8 @@ function ShelfPage({ active, onOpenPaper }) {
             <div
               key={p.id}
               className="shelf-paper-item"
-              onClick={() => onOpenPaper?.(p.id)}
+              onClick={() => p.status === 'ready' && onOpenPaper?.(p.id)}
+              style={{ cursor: p.status === 'ready' ? 'pointer' : 'default' }}
             >
               <div className="sp-info">
                 <div className="sp-name">{p.filename}</div>
@@ -79,12 +101,21 @@ function ShelfPage({ active, onOpenPaper }) {
                   <span> · {new Date(p.created_at).toLocaleDateString()}</span>
                 </div>
               </div>
-              <button
-                className="btn-add-light"
-                onClick={(e) => { e.stopPropagation(); onOpenPaper?.(p.id); }}
-              >
-                打开导读 →
-              </button>
+              {p.status === 'ready' ? (
+                <button className="btn-add-light" onClick={(e) => { e.stopPropagation(); onOpenPaper?.(p.id); }}>
+                  打开导读 →
+                </button>
+              ) : (p.status === 'pending' || p.status === 'error') ? (
+                <button
+                  className="btn-add"
+                  disabled={reading[p.id]}
+                  onClick={(e) => { e.stopPropagation(); handleAiRead(p.id); }}
+                >
+                  {reading[p.id] ? '触发中…' : '🤖 AI 阅读'}
+                </button>
+              ) : (
+                <button className="btn-add-light" disabled>解析中…</button>
+              )}
             </div>
           ))}
         </div>

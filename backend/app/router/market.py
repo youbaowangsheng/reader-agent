@@ -17,7 +17,7 @@ from app.schema.market import (
     BookImportRequest,
 )
 from app.core.security import get_current_user, AuthUser
-from app.router.papers import process_paper_task, get_storage_url
+from app.router.papers import get_storage_url
 from config import get_settings
 
 router = APIRouter(prefix="/api/market", tags=["market"])
@@ -244,5 +244,4 @@ async def import_book(
     await db.commit()
     await db.refresh(paper)
 
-    background_tasks.add_task(process_paper_task, file_id, settings.database_url)
-    return {"id": file_id, "filename": req.filename, "status": "processing", "message": "已下载到书架，正在解析"}
+    return {"id": file_id, "filename": req.filename, "status": "pending", "message": "已下载到书架，点「AI阅读」开始解析"}

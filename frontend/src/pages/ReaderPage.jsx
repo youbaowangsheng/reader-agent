@@ -1,7 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { api } from '../api/client';
 
-// 懒加载 PDF 面板（pdfjs-dist 较大，点击「看原文」才加载）
+// 懒加载 PDF 面板（pdfjs-dist 较大，选中论文才加载）
 const GuidePdfPanel = lazy(() => import('../components/GuidePdfPanel'));
 
 const NODE_ICON = { location: '📍', thought: '💡', question: '🤔', fig: '📊' };
@@ -22,7 +22,8 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
     if (!active) return;
     api.getPapers().then(res => {
       setPapers(res.data);
-      if (res.data.length > 0 && !selectedId) setSelectedId(res.data[0].id);
+      const ready = res.data.filter(p => p.status === 'ready');
+      if (ready.length > 0 && !selectedId) setSelectedId(ready[0].id);
     }).catch(() => {});
   }, [active]);
 
@@ -52,22 +53,25 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
     }
   }, [openPaperId]);
 
-  // 解析中 → 轮询直到 ready/error
+  // 解析中 → 轮询直到 ready/error（刷新待读列表）
   useEffect(() => {
     if (!selectedId || !paperDetail) return;
-    if (paperDetail.status !== 'pending' && paperDetail.status !== 'processing') return;
+    if (paperDetail.status !== 'pending' && paperDetail.status !== 'processing' && paperDetail.status !== 'parsed') return;
     const timer = setInterval(async () => {
       try {
         const res = await api.getPaper(selectedId);
         setPaperDetail(res.data);
         setGuide(res.data.reading_guide || null);
-        if (res.data.status === 'ready' || res.data.status === 'error') clearInterval(timer);
+        if (res.data.status === 'ready' || res.data.status === 'error') {
+          clearInterval(timer);
+          api.getPapers().then(r => setPapers(r.data));
+        }
       } catch (_) {}
     }, 3000);
     return () => clearInterval(timer);
   }, [paperDetail?.status, selectedId]);
 
-  // 触发生成导读（未生成时）
+  // 触发生成导读（解析 ready 且导读未生成时）
   useEffect(() => {
     if (!selectedId || !paperDetail) return;
     if (paperDetail.status !== 'ready') return;
@@ -91,34 +95,14 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
     return () => clearInterval(timer);
   }, [guide?.status, selectedId]);
 
-  // 上传 PDF → 解析 → 选中
-  const handleUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const res = await api.uploadPaper(file);
-      const paperId = res.data.id;
-      try { await api.parsePaper(paperId); } catch (_) {}
-      const papersRes = await api.getPapers();
-      setPapers(papersRes.data);
-      setSelectedId(paperId);
-      e.target.value = '';
-    } catch (err) {
-      alert('上传失败：' + (err.response?.data?.detail || err.message));
-    }
-  };
-
   const saveEngagement = (patch) => {
-    setEngagement(prev => {
-      const next = { ...prev, ...patch };
-      return next;
-    });
+    setEngagement(prev => ({ ...prev, ...patch }));
     api.saveEngagement(selectedId, patch).catch(() => {});
   };
 
   const judge = (trailId, v) => {
     const judgments = { ...(engagement.judgments || {}) };
-    if (judgments[trailId] === v) delete judgments[trailId]; // 再点取消
+    if (judgments[trailId] === v) delete judgments[trailId];
     else judgments[trailId] = v;
     saveEngagement({ judgments });
   };
@@ -173,6 +157,7 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
 
   if (!active) return null;
 
+  const readyPapers = papers.filter(p => p.status === 'ready');
   const fileUrl = paperDetail?.file_url ? paperDetail.file_url.replace(/^\.\//, '/') : '';
   const title = paperDetail?.paper_metadata?.title || paperDetail?.filename || '';
   const plan = guide?.reading_plan || {};
@@ -180,124 +165,134 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
   const verdict = guide?.verdict || {};
   const quiz = guide?.quiz || [];
   const status = guide?.status;
+  const previewPage = pdfState?.page || 1;
+  const previewHighlight = pdfState?.highlight || '';
 
   return (
     <div className="guide-page">
-      <div className="guide-toolbar">
-        <select value={selectedId || ''} onChange={e => setSelectedId(e.target.value)}>
-          <option value="">选择一篇论文…</option>
-          {papers.map(p => <option key={p.id} value={p.id}>{p.filename}</option>)}
-        </select>
-        <label className="btn-ghost" style={{ cursor: 'pointer' }}>
-          📄 上传 PDF
-          <input type="file" accept=".pdf,.epub" onChange={handleUpload} style={{ display: 'none' }} />
-        </label>
-        <div className="spacer" />
-        {status === 'generated' && (
-          <>
-            <button className="btn-ghost" onClick={regenerate} disabled={regenerating}>
-              {regenerating ? '重新生成中…' : '🔄 重新生成导读'}
-            </button>
-            <button className="btn-ghost" onClick={exportView}>📤 导出我的观点</button>
-          </>
-        )}
-      </div>
+      <div className="guide-three-col">
+        {/* 左列：待读列表 */}
+        <aside className="guide-waitlist">
+          <div className="guide-waitlist-head">
+            <span>待读列表</span>
+            <span className="count">{readyPapers.length}</span>
+          </div>
+          {readyPapers.length === 0 ? (
+            <div className="guide-waitlist-empty">
+              暂无已解析的论文<br />去「书架」点「🤖 AI 阅读」
+            </div>
+          ) : (
+            readyPapers.map(p => (
+              <button
+                key={p.id}
+                className={`guide-waitlist-item ${p.id === selectedId ? 'active' : ''}`}
+                onClick={() => setSelectedId(p.id)}
+                title={p.filename}
+              >
+                <span className="w-name">{p.filename}</span>
+              </button>
+            ))
+          )}
+        </aside>
 
-      <div className={`guide-layout ${pdfState ? 'has-pdf' : ''}`}>
+        {/* 中列：AI 导读 */}
         <main className="guide-main">
           <div className="guide-paper-head">
             <div className="guide-tag">AI 导读</div>
-            <h1>{title}</h1>
+            <h1>{title || '选择左侧论文开始导读'}</h1>
           </div>
 
-          {status === 'generating' && (
-            <div className="guide-status">🤖 AI 正在读这篇论文，生成导读中…</div>
-          )}
-          {status === 'error' && (
-            <div className="guide-status err">导读生成失败：{guide?.error || '请重试'}</div>
-          )}
-          {!status && paperDetail?.status === 'ready' && (
-            <div className="guide-status">论文已解析，正在准备导读…</div>
-          )}
-          {paperDetail && paperDetail.status !== 'ready' && (
-            <div className="guide-status">{paperDetail.status === 'error' ? '解析失败' : '论文解析中，请稍候…'}</div>
-          )}
-
-          {status === 'generated' && (
+          {!selectedId ? (
+            <div className="guide-status">从左侧待读列表选择一篇论文</div>
+          ) : (
             <>
-              <SectionTitle label="阅读建议" />
-              <ReadingPlan plan={plan} onLink={openPdf} />
+              {status === 'generating' && (
+                <div className="guide-status">🤖 AI 正在读这篇论文，生成导读中…</div>
+              )}
+              {status === 'error' && (
+                <div className="guide-status err">导读生成失败：{guide?.error || '请重试'}</div>
+              )}
+              {!status && paperDetail?.status === 'ready' && (
+                <div className="guide-status">论文已解析，正在准备导读…</div>
+              )}
 
-              <SectionTitle label="一句话总结" />
-              <div className="guide-summary"><p>{guide.summary}</p></div>
+              {status === 'generated' && (
+                <>
+                  <div className="guide-actions">
+                    <button className="btn-ghost" onClick={regenerate} disabled={regenerating}>
+                      {regenerating ? '重新生成中…' : '🔄 重新生成'}
+                    </button>
+                    <button className="btn-ghost" onClick={exportView}>📤 导出观点</button>
+                  </div>
 
-              <SectionTitle label="导读轨迹" />
-              <div className="guide-trail">
-                {trail.map(t => (
-                  <TrailStop
-                    key={t.id}
-                    t={t}
-                    judgment={engagement.judgments?.[t.id]}
-                    note={engagement.notes?.[t.id]}
-                    noteDraft={noteDraft[t.id] || ''}
-                    onJudge={v => judge(t.id, v)}
-                    onNote={text => note(t.id, text)}
-                    onDraft={text => setNoteDraft(d => ({ ...d, [t.id]: text }))}
-                    onLink={openPdf}
-                    onVoice={voice}
-                  />
-                ))}
-              </div>
+                  <SectionTitle label="阅读建议" />
+                  <ReadingPlan plan={plan} onLink={openPdf} />
 
-              <SectionTitle label="整体判断" />
-              <div className="guide-verdict">
-                <p>{verdict.text}</p>
-                <div className="guide-stars">
-                  {'★'.repeat(verdict.stars || 0)}{'☆'.repeat(Math.max(0, 5 - (verdict.stars || 0)))}
-                </div>
-              </div>
+                  <SectionTitle label="一句话总结" />
+                  <div className="guide-summary"><p>{guide.summary}</p></div>
 
-              <SectionTitle label="我的观点" />
-              <div className="guide-myview">
-                <div className="guide-myview-prompt">读完了，别急着照单全收 —— 上面 AI 的观点你认同几条？哪些不同意？为什么？</div>
-                <textarea
-                  value={myView}
-                  onChange={e => setMyView(e.target.value)}
-                  placeholder="这篇论文我的看法是…"
-                />
-                <div className="guide-myview-actions">
-                  <button className="guide-voice-btn" onClick={() => voice(setMyView)}>🎤 语音输入</button>
-                  <button className="guide-submit" onClick={submitMyView}>记录我的观点</button>
-                </div>
-              </div>
+                  <SectionTitle label="导读轨迹" />
+                  <div className="guide-trail">
+                    {trail.map(t => (
+                      <TrailStop
+                        key={t.id}
+                        t={t}
+                        judgment={engagement.judgments?.[t.id]}
+                        note={engagement.notes?.[t.id]}
+                        noteDraft={noteDraft[t.id] || ''}
+                        onJudge={v => judge(t.id, v)}
+                        onNote={text => note(t.id, text)}
+                        onDraft={text => setNoteDraft(d => ({ ...d, [t.id]: text }))}
+                        onLink={openPdf}
+                        onVoice={voice}
+                      />
+                    ))}
+                  </div>
 
-              <SectionTitle label="检测题目" />
-              <div className="guide-quiz">
-                {quiz.map(q => (
-                  <QuizItem
-                    key={q.id}
-                    q={q}
-                    chosen={engagement.quiz_answers?.[q.id]}
-                    onAnswer={a => answer(q.id, a)}
-                  />
-                ))}
-              </div>
+                  <SectionTitle label="整体判断" />
+                  <div className="guide-verdict">
+                    <p>{verdict.text}</p>
+                    <div className="guide-stars">
+                      {'★'.repeat(verdict.stars || 0)}{'☆'.repeat(Math.max(0, 5 - (verdict.stars || 0)))}
+                    </div>
+                  </div>
+
+                  <SectionTitle label="我的观点" />
+                  <div className="guide-myview">
+                    <div className="guide-myview-prompt">读完了，别急着照单全收 —— 上面 AI 的观点你认同几条？哪些不同意？为什么？</div>
+                    <textarea value={myView} onChange={e => setMyView(e.target.value)} placeholder="这篇论文我的看法是…" />
+                    <div className="guide-myview-actions">
+                      <button className="guide-voice-btn" onClick={() => voice(setMyView)}>🎤 语音输入</button>
+                      <button className="guide-submit" onClick={submitMyView}>记录我的观点</button>
+                    </div>
+                  </div>
+
+                  <SectionTitle label="检测题目" />
+                  <div className="guide-quiz">
+                    {quiz.map(q => (
+                      <QuizItem key={q.id} q={q} chosen={engagement.quiz_answers?.[q.id]} onAnswer={a => answer(q.id, a)} />
+                    ))}
+                  </div>
+                </>
+              )}
             </>
           )}
         </main>
 
-        {pdfState && (
-          <aside className="guide-pdf-aside">
+        {/* 右列：原文预览 */}
+        <aside className="guide-preview">
+          {selectedId && fileUrl ? (
             <Suspense fallback={<div className="guide-status">PDF 加载中…</div>}>
               <GuidePdfPanel
                 fileUrl={fileUrl}
-                page={pdfState.page}
-                highlight={pdfState.highlight}
-                onClose={() => setPdfState(null)}
+                page={previewPage}
+                highlight={previewHighlight}
               />
             </Suspense>
-          </aside>
-        )}
+          ) : (
+            <div className="guide-preview-empty">原文预览</div>
+          )}
+        </aside>
       </div>
     </div>
   );

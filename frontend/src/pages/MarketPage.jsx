@@ -37,7 +37,7 @@ function MarketPage({ active, onOpenPaper }) {
     setImporting(prev => ({ ...prev, [book.filename]: true }));
     try {
       const res = await api.importBook(book.pdf_path, book.filename);
-      setImported(prev => ({ ...prev, [book.filename]: res.data.id }));
+      setImported(prev => ({ ...prev, [book.filename]: true }));
     } catch (err) {
       alert('下载失败：' + (err.response?.data?.detail || err.message));
     } finally {
@@ -73,9 +73,7 @@ function MarketPage({ active, onOpenPaper }) {
                     <div className="mb-meta">{book.issue} · {formatSize(book.size)}</div>
                   </div>
                   {imported[book.filename] ? (
-                    <button className="btn-add-light" onClick={() => onOpenPaper?.(imported[book.filename])}>
-                      已在书架 · 打开 →
-                    </button>
+                    <span className="mb-done">已下载 ✓ 去「书架」点 AI 阅读</span>
                   ) : (
                     <button
                       className="btn-add"

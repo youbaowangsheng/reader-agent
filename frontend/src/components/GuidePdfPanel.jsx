@@ -79,7 +79,7 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
       <div className="guide-pdf-head">
         <span className="guide-pdf-title">PDF 原文</span>
         {pageInfo && <span className="guide-pdf-page">第 {pageInfo.num} / {pageInfo.total} 页</span>}
-        <button className="guide-pdf-close" onClick={onClose} title="关闭">✕</button>
+        {onClose && <button className="guide-pdf-close" onClick={onClose} title="关闭">✕</button>}
       </div>
       {highlight && (
         <div className="guide-pdf-anchor">
