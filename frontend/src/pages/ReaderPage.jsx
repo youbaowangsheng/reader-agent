@@ -17,6 +17,8 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
   const [noteDraft, setNoteDraft] = useState({});
   const [myView, setMyView] = useState('');
   const [regenerating, setRegenerating] = useState(false);
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [waitlistCollapsed, setWaitlistCollapsed] = useState(false);
 
   // 加载论文列表
   useEffect(() => {
@@ -36,6 +38,7 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
     setEngagement({});
     setPdfState(null);
     setPdfPanelOpen(false);
+    setQuizSubmitted(false);
     setMyView('');
     setNoteDraft({});
     api.getPaper(selectedId).then(res => {
@@ -177,26 +180,35 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
     <div className="guide-page">
       <div className="guide-three-col">
         {/* 左列：待读列表 */}
-        <aside className="guide-waitlist">
-          <div className="guide-waitlist-head">
-            <span>待读列表</span>
-            <span className="count">{readyPapers.length}</span>
-          </div>
-          {readyPapers.length === 0 ? (
-            <div className="guide-waitlist-empty">
-              暂无已解析的论文<br />去「书架」点「🤖 AI 阅读」
-            </div>
+        <aside className={`guide-waitlist ${waitlistCollapsed ? 'collapsed' : ''}`}>
+          {waitlistCollapsed ? (
+            <button className="guide-waitlist-toggle" onClick={() => setWaitlistCollapsed(false)} title="展开待读列表">»</button>
           ) : (
-            readyPapers.map(p => (
-              <button
-                key={p.id}
-                className={`guide-waitlist-item ${p.id === selectedId ? 'active' : ''}`}
-                onClick={() => setSelectedId(p.id)}
-                title={p.filename}
-              >
-                <span className="w-name">{p.filename}</span>
-              </button>
-            ))
+            <>
+              <div className="guide-waitlist-head">
+                <span>待读列表</span>
+                <span className="guide-waitlist-head-right">
+                  <span className="count">{readyPapers.length}</span>
+                  <button className="guide-waitlist-collapse" onClick={() => setWaitlistCollapsed(true)} title="收起">«</button>
+                </span>
+              </div>
+              {readyPapers.length === 0 ? (
+                <div className="guide-waitlist-empty">
+                  暂无已解析的论文<br />去「书架」点「🤖 AI 阅读」
+                </div>
+              ) : (
+                readyPapers.map(p => (
+                  <button
+                    key={p.id}
+                    className={`guide-waitlist-item ${p.id === selectedId ? 'active' : ''}`}
+                    onClick={() => setSelectedId(p.id)}
+                    title={p.filename}
+                  >
+                    <span className="w-name">{p.filename}</span>
+                  </button>
+                ))
+              )}
+            </>
           )}
         </aside>
 
@@ -275,8 +287,17 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
                   <SectionTitle label="检测题目" />
                   <div className="guide-quiz">
                     {quiz.map(q => (
-                      <QuizItem key={q.id} q={q} chosen={engagement.quiz_answers?.[q.id]} onAnswer={a => answer(q.id, a)} />
+                      <QuizItem key={q.id} q={q} chosen={engagement.quiz_answers?.[q.id]} onAnswer={a => answer(q.id, a)} submitted={quizSubmitted} />
                     ))}
+                    <div className="guide-quiz-actions">
+                      {!quizSubmitted ? (
+                        <button className="guide-submit" onClick={() => setQuizSubmitted(true)}>
+                          提交答案
+                        </button>
+                      ) : (
+                        <button className="btn-ghost" onClick={() => setQuizSubmitted(false)}>重新作答</button>
+                      )}
+                    </div>
                   </div>
                 </>
               )}
@@ -392,8 +413,7 @@ function TrailStop({ t, judgment, note, noteDraft, onJudge, onNote, onDraft, onL
   );
 }
 
-function QuizItem({ q, chosen, onAnswer }) {
-  const [revealed, setRevealed] = useState(false);
+function QuizItem({ q, chosen, onAnswer, submitted }) {
   return (
     <div className="guide-q">
       <div className="guide-q-t">{q.q}</div>
@@ -405,15 +425,15 @@ function QuizItem({ q, chosen, onAnswer }) {
           return (
             <div
               key={i}
-              className={`guide-opt ${isChosen ? (isRight ? 'right' : 'wrong') : ''} ${revealed && isRight ? 'right' : ''}`}
-              onClick={() => { onAnswer(letter); setRevealed(true); }}
+              className={`guide-opt ${isChosen ? 'chosen' : ''} ${submitted && isRight ? 'right' : ''} ${submitted && isChosen && !isRight ? 'wrong' : ''}`}
+              onClick={() => onAnswer(letter)}
             >
               {opt}
             </div>
           );
         })}
       </div>
-      {revealed && <div className="guide-q-explain">答案 {q.answer}。{q.explain}</div>}
+      {submitted && <div className="guide-q-explain">答案 {q.answer}。{q.explain}</div>}
     </div>
   );
 }

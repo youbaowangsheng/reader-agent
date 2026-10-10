@@ -17,6 +17,8 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(page || 1);
   const containerRef = useRef(null);
+  const [zoom, setZoom] = useState(null); // null=适应宽度，数字=缩放比例
+  const scaleRef = useRef(1);
 
   // 锚点 page 变化时同步当前页
   useEffect(() => {
@@ -37,6 +39,11 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
     else if (el.requestFullscreen) el.requestFullscreen();
     else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
   };
+
+  const zoomIn = () => setZoom(Math.round(scaleRef.current * 1.25 * 100) / 100);
+  const zoomOut = () => setZoom(Math.round(scaleRef.current / 1.25 * 100) / 100);
+  const zoom100 = () => setZoom(1.0);
+  const zoomFit = () => setZoom(null);
 
   // 加载 PDF 文档（缓存）
   useEffect(() => {
@@ -70,18 +77,29 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
       const pdfPage = await pdf.getPage(currentPage);
       const baseViewport = pdfPage.getViewport({ scale: 1 });
       const containerWidth = canvas.parentElement?.clientWidth || 700;
-      const s = Math.max(0.8, containerWidth / baseViewport.width);
+      // 缩放：zoom 优先，否则适应宽度
+      let s;
+      if (zoom) {
+        s = zoom;
+      } else {
+        s = Math.max(0.5, containerWidth / baseViewport.width);
+      }
+      scaleRef.current = s;
       setScale(s);
-      const viewport = pdfPage.getViewport({ scale: s });
 
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+      // devicePixelRatio 提升清晰度（修复 retina 模糊）
+      const dpr = window.devicePixelRatio || 1;
+      const viewport = pdfPage.getViewport({ scale: s });
+      canvas.width = viewport.width * dpr;
+      canvas.height = viewport.height * dpr;
+      canvas.style.width = viewport.width + 'px';
+      canvas.style.height = viewport.height + 'px';
       const ctx = canvas.getContext('2d');
-      await pdfPage.render({ canvasContext: ctx, viewport }).promise;
+      await pdfPage.render({ canvasContext: ctx, viewport: pdfPage.getViewport({ scale: s * dpr }) }).promise;
 
       setPageInfo({ num: currentPage, total: pdf.numPages });
 
-      // 高亮文本
+      // 高亮文本（viewport/CSS 坐标）
       if (highlight) {
         const textContent = await pdfPage.getTextContent();
         const rect = findHighlightRect(textContent.items, highlight, s);
@@ -92,7 +110,7 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
     } catch (e) {
       setError('渲染失败：' + (e?.message || ''));
     }
-  }, [pdf, currentPage, highlight]);
+  }, [pdf, currentPage, highlight, zoom]);
 
   useEffect(() => { render(); }, [render]);
 
@@ -103,6 +121,9 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
         {pageInfo && <span className="guide-pdf-page">第 {pageInfo.num} / {pageInfo.total} 页</span>}
         <button className="guide-pdf-btn" onClick={() => goPage(-1)} title="上一页">‹</button>
         <button className="guide-pdf-btn" onClick={() => goPage(1)} title="下一页">›</button>
+        <button className="guide-pdf-btn" onClick={zoomOut} title="缩小">−</button>
+        <button className="guide-pdf-btn" onClick={zoom100} title="原始尺寸 100%">100%</button>
+        <button className="guide-pdf-btn" onClick={zoomIn} title="放大">＋</button>
         <button className="guide-pdf-btn" onClick={toggleFullscreen} title="全屏">⛶</button>
         {onClose && <button className="guide-pdf-close" onClick={onClose} title="关闭">✕</button>}
       </div>
@@ -135,6 +156,9 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
       {pageInfo && (
         <div className="guide-pdf-footer">
           <button className="guide-pdf-btn" onClick={() => goPage(-1)} disabled={currentPage <= 1}>‹ 上一页</button>
+          <button className="guide-pdf-btn" onClick={zoomOut} title="缩小">−</button>
+          <button className="guide-pdf-btn" onClick={zoom100} title="原始尺寸">100%</button>
+          <button className="guide-pdf-btn" onClick={zoomIn} title="放大">＋</button>
           <span className="guide-pdf-footer-page">{currentPage} / {pageInfo.total}</span>
           <button className="guide-pdf-btn" onClick={() => goPage(1)} disabled={currentPage >= pageInfo.total}>下一页 ›</button>
         </div>
