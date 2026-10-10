@@ -6,8 +6,12 @@ const GuidePdfPanel = lazy(() => import('../components/GuidePdfPanel'));
 
 const NODE_ICON = { location: '📍', thought: '💡', question: '🤔', fig: '📊' };
 
+// 论文列表模块级缓存（切换 tab 秒出，避免重复请求）
+let _papersCache = null;
+
 function ReaderPage({ active, openPaperId, onPaperConsumed }) {
   const [papers, setPapers] = useState([]);
+  const [papersLoading, setPapersLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
   const [paperDetail, setPaperDetail] = useState(null);
   const [guide, setGuide] = useState(null);
@@ -34,11 +38,21 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
   // 加载论文列表
   useEffect(() => {
     if (!active) return;
+    // 有缓存直接用，秒出
+    if (_papersCache) {
+      setPapers(_papersCache);
+      setPapersLoading(false);
+      const ready = _papersCache.filter(p => p.status === 'ready');
+      if (ready.length > 0 && !selectedId) setSelectedId(ready[0].id);
+      return;
+    }
+    setPapersLoading(true);
     api.getPapers().then(res => {
+      _papersCache = res.data;
       setPapers(res.data);
       const ready = res.data.filter(p => p.status === 'ready');
       if (ready.length > 0 && !selectedId) setSelectedId(ready[0].id);
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setPapersLoading(false));
   }, [active]);
 
   // 选中论文 → 加载详情 + 导读 + 交互
@@ -203,7 +217,9 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
                   <button className="guide-waitlist-collapse" onClick={() => toggleWaitlist(true)} title="收起">«</button>
                 </span>
               </div>
-              {readyPapers.length === 0 ? (
+              {papersLoading ? (
+                <div className="guide-waitlist-empty">加载中…</div>
+              ) : readyPapers.length === 0 ? (
                 <div className="guide-waitlist-empty">
                   暂无已解析的论文<br />去「书架」点「🤖 AI 阅读」
                 </div>

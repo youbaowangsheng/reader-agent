@@ -238,7 +238,7 @@ p:hover .ask-inline{opacity:1}
 .chip.active{background:var(--accent);color:#fff;box-shadow:none}
 
 /* ===== AI 导读 ===== */
-.guide-page{height:100%;display:flex;flex-direction:column}
+.guide-page{flex:1;height:100%;display:flex;flex-direction:column;overflow:hidden}
 .guide-toolbar{display:flex;align-items:center;gap:12px;padding:10px 20px;box-shadow:var(--border);position:sticky;top:0;background:var(--bg);z-index:20}
 .guide-toolbar select{height:34px;padding:0 10px;border-radius:8px;box-shadow:var(--border);border:none;font-size:13px;color:var(--text-2);max-width:340px}
 .guide-toolbar .spacer{flex:1}
