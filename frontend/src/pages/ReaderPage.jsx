@@ -30,10 +30,17 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
     localStorage.setItem('waitlist_collapsed', collapsed ? '1' : '0');
   };
 
-  // 选中论文后，导读区滚动回顶部（避免移动端锚定到中间）
+  // 选中论文/导读生成完成后，强制滚动回顶部（避免移动端锚定到导读轨迹中间）
   useEffect(() => {
-    if (mainRef.current) mainRef.current.scrollTop = 0;
-  }, [selectedId]);
+    const scrollTop = () => {
+      if (mainRef.current) mainRef.current.scrollTop = 0;
+      window.scrollTo(0, 0);
+    };
+    scrollTop();
+    const t1 = setTimeout(scrollTop, 200);
+    const t2 = setTimeout(scrollTop, 600);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [selectedId, status]);
 
   // 加载论文列表
   useEffect(() => {
