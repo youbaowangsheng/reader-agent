@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import { api } from '../api/client';
 
 // 懒加载 PDF 面板（pdfjs-dist 较大，选中论文才加载）
@@ -18,7 +18,18 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
   const [myView, setMyView] = useState('');
   const [regenerating, setRegenerating] = useState(false);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
-  const [waitlistCollapsed, setWaitlistCollapsed] = useState(false);
+  const [waitlistCollapsed, setWaitlistCollapsed] = useState(() => localStorage.getItem('waitlist_collapsed') === '1');
+  const mainRef = useRef(null);
+
+  const toggleWaitlist = (collapsed) => {
+    setWaitlistCollapsed(collapsed);
+    localStorage.setItem('waitlist_collapsed', collapsed ? '1' : '0');
+  };
+
+  // 选中论文后，导读区滚动回顶部（避免移动端锚定到中间）
+  useEffect(() => {
+    if (mainRef.current) mainRef.current.scrollTop = 0;
+  }, [selectedId]);
 
   // 加载论文列表
   useEffect(() => {
@@ -178,18 +189,18 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
 
   return (
     <div className="guide-page">
-      <div className="guide-three-col">
+      <div className="guide-three-col" ref={mainRef}>
         {/* 左列：待读列表 */}
         <aside className={`guide-waitlist ${waitlistCollapsed ? 'collapsed' : ''}`}>
           {waitlistCollapsed ? (
-            <button className="guide-waitlist-toggle" onClick={() => setWaitlistCollapsed(false)} title="展开待读列表">»</button>
+            <button className="guide-waitlist-toggle" onClick={() => toggleWaitlist(false)} title="展开待读列表">»</button>
           ) : (
             <>
               <div className="guide-waitlist-head">
                 <span>待读列表</span>
                 <span className="guide-waitlist-head-right">
                   <span className="count">{readyPapers.length}</span>
-                  <button className="guide-waitlist-collapse" onClick={() => setWaitlistCollapsed(true)} title="收起">«</button>
+                  <button className="guide-waitlist-collapse" onClick={() => toggleWaitlist(true)} title="收起">«</button>
                 </span>
               </div>
               {readyPapers.length === 0 ? (
