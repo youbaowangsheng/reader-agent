@@ -22,6 +22,7 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
   const [myView, setMyView] = useState('');
   const [regenerating, setRegenerating] = useState(false);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [myViewSaved, setMyViewSaved] = useState(false);
   const [waitlistCollapsed, setWaitlistCollapsed] = useState(() => localStorage.getItem('waitlist_collapsed') === '1');
   const mainRef = useRef(null);
   const topRef = useRef(null);
@@ -149,7 +150,12 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
     saveEngagement({ notes });
   };
 
-  const submitMyView = () => saveEngagement({ my_view: myView });
+  const submitMyView = () => {
+    if (!myView.trim()) return;
+    saveEngagement({ my_view: myView });
+    setMyViewSaved(true);
+    setTimeout(() => setMyViewSaved(false), 2000);
+  };
 
   const answer = (qid, a) => {
     const quiz_answers = { ...(engagement.quiz_answers || {}), [qid]: a };
@@ -318,7 +324,7 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
                     <textarea value={myView} onChange={e => setMyView(e.target.value)} placeholder="这篇论文我的看法是…" />
                     <div className="guide-myview-actions">
                       <button className="guide-voice-btn" onClick={() => voice(setMyView)}>🎤 语音输入</button>
-                      <button className="guide-submit" onClick={submitMyView}>记录我的观点</button>
+                      <button className="guide-submit" onClick={submitMyView}>{myViewSaved ? '已保存 ✓' : '记录我的观点'}</button>
                     </div>
                   </div>
 
@@ -445,6 +451,7 @@ function TrailStop({ t, judgment, note, noteDraft, onJudge, onNote, onDraft, onL
             placeholder="写下你的看法…"
           />
           <button className="guide-mic" onClick={() => onVoice(text => onNote(text))} title="语音输入">🎤</button>
+          <button className="guide-note-submit" onClick={() => onNote(noteDraft)}>提交</button>
         </div>
       )}
     </div>
