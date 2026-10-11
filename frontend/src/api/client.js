@@ -9,6 +9,16 @@ const api = axios.create({
 
 let token = null;
 
+// 模块加载时从 localStorage 恢复 token（React 子组件 effect 先于父组件执行，
+// 若在 App 的 useEffect 里才 setToken，ReaderPage 的 getPapers 会先无 token 请求而 401）
+try {
+  const _saved = localStorage.getItem('token');
+  if (_saved) {
+    token = _saved;
+    api.defaults.headers.common['Authorization'] = `Bearer ${_saved}`;
+  }
+} catch (_) {}
+
 api.setToken = (t) => {
   token = t;
   if (t) {
