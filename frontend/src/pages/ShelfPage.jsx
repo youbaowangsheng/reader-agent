@@ -77,7 +77,7 @@ function ShelfPage({ active, onOpenPaper }) {
         <button className="btn-primary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
           {uploading ? '上传中…' : '📄 上传 PDF'}
         </button>
-        <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" onChange={handleUpload} style={{ display: 'none' }} />
+        <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" onChange={handleUpload} style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, overflow: 'hidden' }} />
       </div>
 
       {loading ? (
