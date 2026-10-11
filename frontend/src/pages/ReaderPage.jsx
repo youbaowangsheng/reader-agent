@@ -24,21 +24,23 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [waitlistCollapsed, setWaitlistCollapsed] = useState(() => localStorage.getItem('waitlist_collapsed') === '1');
   const mainRef = useRef(null);
+  const topRef = useRef(null);
 
   const toggleWaitlist = (collapsed) => {
     setWaitlistCollapsed(collapsed);
     localStorage.setItem('waitlist_collapsed', collapsed ? '1' : '0');
   };
 
-  // 选中论文/导读生成完成后，强制滚动回顶部（避免移动端锚定到导读轨迹中间）
+  // 选中论文/导读生成完成后，滚动回顶部（scrollIntoView 比 scrollTop 可靠）
   useEffect(() => {
-    const scrollTop = () => {
+    const toTop = () => {
+      if (topRef.current) topRef.current.scrollIntoView({ block: 'start', behavior: 'auto' });
       if (mainRef.current) mainRef.current.scrollTop = 0;
       window.scrollTo(0, 0);
     };
-    scrollTop();
-    const t1 = setTimeout(scrollTop, 200);
-    const t2 = setTimeout(scrollTop, 600);
+    toTop();
+    const t1 = setTimeout(toTop, 250);
+    const t2 = setTimeout(toTop, 700);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [selectedId, guide?.status]);
 
@@ -246,6 +248,7 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
 
         {/* 中列：AI 导读 */}
         <main className={`guide-main ${selectedId ? 'has-selection' : ''}`}>
+          <div ref={topRef} />
           {selectedId && (
             <button className="guide-mobile-back" onClick={() => setSelectedId(null)}>← 返回列表</button>
           )}
