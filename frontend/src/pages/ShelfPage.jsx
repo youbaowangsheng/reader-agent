@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api/client';
 
 function ShelfPage({ active, onOpenPaper }) {
@@ -6,6 +6,7 @@ function ShelfPage({ active, onOpenPaper }) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [reading, setReading] = useState({}); // paperId -> bool
+  const fileInputRef = useRef(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -73,10 +74,10 @@ function ShelfPage({ active, onOpenPaper }) {
     <div id="page-shelf" className="page active">
       <div className="shelf-header">
         <h2>我的书架</h2>
-        <label className="btn-primary" style={{ cursor: 'pointer' }}>
+        <button className="btn-primary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
           {uploading ? '上传中…' : '📄 上传 PDF'}
-          <input type="file" accept=".pdf,.epub" onChange={handleUpload} style={{ display: 'none' }} />
-        </label>
+        </button>
+        <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" onChange={handleUpload} style={{ display: 'none' }} />
       </div>
 
       {loading ? (
