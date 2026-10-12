@@ -15,7 +15,6 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
   const [scale, setScale] = useState(1.4);
   const [pageInfo, setPageInfo] = useState(null);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(page || 1);
   const containerRef = useRef(null);
   const [zoom, setZoom] = useState(null); // null=适应宽度，数字=缩放比例
@@ -108,7 +107,6 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
       } else {
         setHlRect(null);
       }
-      setLoading(false);
     } catch (e) {
       setError('渲染失败：' + (e?.message || ''));
     }
@@ -141,12 +139,6 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
         ) : (
           <div className="guide-pdf-canvas-wrap">
             <canvas ref={canvasRef} />
-            {loading && (
-              <div className="guide-pdf-loading">
-                <span className="guide-pdf-spinner"></span>
-                <span>原文加载中…</span>
-              </div>
-            )}
             {hlRect && (
               <div
                 className="guide-pdf-hl"
