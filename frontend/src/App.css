@@ -371,7 +371,7 @@ p:hover .ask-inline{opacity:1}
 .guide-pdf-canvas-wrap canvas{display:block;max-width:100%;height:auto;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 .guide-pdf-hl{position:absolute;background:rgba(254,240,138,.5);border-radius:2px;pointer-events:none;mix-blend-mode:multiply}
 .guide-pdf-error{padding:30px;text-align:center;color:#fff;font-size:13px}
-.guide-pdf-loading{display:flex;align-items:center;justify-content:center;gap:10px;height:100%;min-height:240px;color:#d4d4d4;font-size:13px}
+.guide-pdf-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:10px;color:#fff;font-size:13px;background:rgba(82,86,89,.9)}
 .guide-pdf-spinner{width:22px;height:22px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:guide-spin .8s linear infinite}
 @keyframes guide-spin{to{transform:rotate(360deg)}}
 

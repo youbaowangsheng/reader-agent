@@ -138,14 +138,15 @@ function GuidePdfPanel({ fileUrl, page, highlight, onClose }) {
       <div className="guide-pdf-body">
         {error ? (
           <div className="guide-pdf-error">{error}</div>
-        ) : loading ? (
-          <div className="guide-pdf-loading">
-            <span className="guide-pdf-spinner"></span>
-            <span>原文加载中…</span>
-          </div>
         ) : (
           <div className="guide-pdf-canvas-wrap">
             <canvas ref={canvasRef} />
+            {loading && (
+              <div className="guide-pdf-loading">
+                <span className="guide-pdf-spinner"></span>
+                <span>原文加载中…</span>
+              </div>
+            )}
             {hlRect && (
               <div
                 className="guide-pdf-hl"
