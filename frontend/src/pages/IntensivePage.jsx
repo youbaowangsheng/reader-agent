@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api/client';
 
 const LEVEL_COLOR = { L1: '#4caf50', L2: '#8bc34a', L3: '#ffb300', L4: '#ff7043', L5: '#e53935' };
@@ -17,6 +17,7 @@ function IntensivePage({ active }) {
   const [answers, setAnswers] = useState({});
   const [extScore, setExtScore] = useState(null);
   const [extScoring, setExtScoring] = useState(false);
+  const currentIdRef = useRef(null);
 
   useEffect(() => {
     if (active && articles.length === 0) {
@@ -25,41 +26,58 @@ function IntensivePage({ active }) {
   }, [active]);
 
   const selectArticle = (id) => {
+    currentIdRef.current = id;
     setSelected(null); setGuide(null); setScore(null); setSummary('');
     setExtensive(null); setAnswers({}); setExtScore(null);
-    api.getIntensiveArticle(id).then(r => setSelected(r.data)).catch(() => {});
+    setGenerating(false); setScoring(false);
+    setGenExtLoading(false); setExtScoring(false);
+    api.getIntensiveArticle(id).then(r => {
+      if (currentIdRef.current === id) setSelected(r.data);
+    }).catch(() => {});
   };
 
   const genExt = () => {
     if (!selected) return;
+    const id = selected.id;
     setGenExtLoading(true); setExtensive(null); setExtScore(null);
-    api.generateExtensive(selected.id).then(r => {
-      setExtensive(r.data); setGenExtLoading(false);
-    }).catch(() => setGenExtLoading(false));
+    api.generateExtensive(id).then(r => {
+      if (currentIdRef.current === id) { setExtensive(r.data); setGenExtLoading(false); }
+    }).catch(() => {
+      if (currentIdRef.current === id) setGenExtLoading(false);
+    });
   };
 
   const submitExt = () => {
     if (!extensive) return;
+    const id = selected.id;
     setExtScoring(true);
-    api.scoreExtensive(selected.id, extensive.passage, extensive.questions, answers).then(r => {
-      setExtScore(r.data); setExtScoring(false);
-    }).catch(() => setExtScoring(false));
+    api.scoreExtensive(id, extensive.passage, extensive.questions, answers).then(r => {
+      if (currentIdRef.current === id) { setExtScore(r.data); setExtScoring(false); }
+    }).catch(() => {
+      if (currentIdRef.current === id) setExtScoring(false);
+    });
   };
 
   const genGuide = () => {
     if (!selected) return;
+    const id = selected.id;
     setGenerating(true); setGuide(null); setScore(null);
-    api.generateIntensiveGuide(selected.id).then(r => {
-      setGuide(r.data); setGenerating(false);
-    }).catch(() => setGenerating(false));
+    api.generateIntensiveGuide(id).then(r => {
+      if (currentIdRef.current === id) { setGuide(r.data); setGenerating(false); }
+    }).catch(() => {
+      if (currentIdRef.current === id) setGenerating(false);
+    });
   };
 
   const submitSummary = () => {
     if (!summary.trim() || !guide?.writing_task) return;
+    const id = selected.id;
     setScoring(true);
-    api.scoreSummary(selected.id, guide.writing_task.key_points, summary).then(r => {
-      setScore(r.data); setScoring(false);
-    }).catch(() => setScoring(false));
+    api.scoreSummary(id, guide.writing_task.key_points, summary).then(r => {
+      if (currentIdRef.current === id) { setScore(r.data); setScoring(false); }
+    }).catch(() => {
+      if (currentIdRef.current === id) setScoring(false);
+    });
   };
 
   if (!active) return null;
