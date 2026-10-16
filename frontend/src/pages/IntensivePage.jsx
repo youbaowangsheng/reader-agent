@@ -11,6 +11,12 @@ function IntensivePage({ active }) {
   const [summary, setSummary] = useState('');
   const [score, setScore] = useState(null);
   const [scoring, setScoring] = useState(false);
+  const [mode, setMode] = useState('intensive'); // intensive | extensive
+  const [extensive, setExtensive] = useState(null);
+  const [genExtLoading, setGenExtLoading] = useState(false);
+  const [answers, setAnswers] = useState({});
+  const [extScore, setExtScore] = useState(null);
+  const [extScoring, setExtScoring] = useState(false);
 
   useEffect(() => {
     if (active && articles.length === 0) {
@@ -20,7 +26,24 @@ function IntensivePage({ active }) {
 
   const selectArticle = (id) => {
     setSelected(null); setGuide(null); setScore(null); setSummary('');
+    setExtensive(null); setAnswers({}); setExtScore(null);
     api.getIntensiveArticle(id).then(r => setSelected(r.data)).catch(() => {});
+  };
+
+  const genExt = () => {
+    if (!selected) return;
+    setGenExtLoading(true); setExtensive(null); setExtScore(null);
+    api.generateExtensive(selected.id).then(r => {
+      setExtensive(r.data); setGenExtLoading(false);
+    }).catch(() => setGenExtLoading(false));
+  };
+
+  const submitExt = () => {
+    if (!extensive) return;
+    setExtScoring(true);
+    api.scoreExtensive(selected.id, extensive.passage, extensive.questions, answers).then(r => {
+      setExtScore(r.data); setExtScoring(false);
+    }).catch(() => setExtScoring(false));
   };
 
   const genGuide = () => {
@@ -80,17 +103,24 @@ function IntensivePage({ active }) {
                 <span className="intensive-level" style={{ background: LEVEL_COLOR[selected.level] || '#999' }}>{selected.level}</span>
                 <span>{selected.topic} · {selected.word_count}词</span>
               </div>
-              <button className="intensive-gen-btn" onClick={genGuide} disabled={generating}>
-                {generating ? '🤖 AI 带读生成中…' : guide ? '🔄 重新生成带读' : '🤖 AI 带读'}
-              </button>
+              <div className="intensive-mode-switch">
+                <button className={mode === 'intensive' ? 'active' : ''} onClick={() => setMode('intensive')}>📚 精读</button>
+                <button className={mode === 'extensive' ? 'active' : ''} onClick={() => setMode('extensive')}>⚡ 泛读</button>
+              </div>
             </div>
 
-            {!guide && !generating && (
-              <div className="intensive-hint">点「AI 带读」，AI 会逐段带你精读这篇文章（生词 / 长难句 / 背景 / 观点），读完后做概要写作。</div>
-            )}
+            {mode === 'intensive' ? (
+              <>
+                <button className="intensive-gen-btn" onClick={genGuide} disabled={generating}>
+                  {generating ? '🤖 AI 带读生成中…' : guide ? '🔄 重新生成带读' : '🤖 AI 带读'}
+                </button>
 
-            {guide && (
-              <div className="intensive-guide">
+                {!guide && !generating && (
+                  <div className="intensive-hint">点「AI 带读」，AI 会逐段带你精读这篇文章（生词 / 长难句 / 背景 / 观点），读完后做概要写作。</div>
+                )}
+
+                {guide && (
+                  <div className="intensive-guide">
                 <div className="intensive-overview">
                   <div className="intensive-sec-title">📖 一句话概述</div>
                   <p>{guide.overview}</p>
@@ -174,6 +204,57 @@ function IntensivePage({ active }) {
                   )}
                 </div>
               </div>
+            )}
+            </>
+            ) : (
+            <>
+            <button className="intensive-gen-btn" onClick={genExt} disabled={genExtLoading}>
+              {genExtLoading ? '⚡ 泛读材料生成中…' : extensive ? '🔄 重新生成' : '⚡ 生成泛读材料'}
+            </button>
+
+            {!extensive && !genExtLoading && (
+              <div className="intensive-hint">泛读：快速读一篇短文、抓大意。点「生成泛读材料」，AI 会提取一段 150-300 词的原文 + 大意检测题。</div>
+            )}
+
+            {extensive && (
+              <div className="intensive-extensive">
+                <div className="intensive-sec-title">📄 泛读短文（{extensive.passage ? extensive.passage.split(' ').length : 0} 词）</div>
+                <div className="intensive-passage">{extensive.passage}</div>
+                <div className="intensive-sec-title">❓ 大意检测</div>
+                {(extensive.questions || []).map((q, i) => (
+                  <div className="intensive-ext-q" key={i}>
+                    <div className="intensive-ext-q-text">{q.q}</div>
+                    <textarea
+                      className="intensive-textarea"
+                      value={answers[i] || ''}
+                      onChange={e => setAnswers(a => ({ ...a, [i]: e.target.value }))}
+                      placeholder="用英文回答…"
+                      rows={3}
+                    />
+                  </div>
+                ))}
+                <div className="intensive-writing-actions">
+                  <button className="intensive-submit" onClick={submitExt} disabled={extScoring}>
+                    {extScoring ? '评分中…' : '提交'}
+                  </button>
+                </div>
+                {extScore && (
+                  <div className="intensive-score">
+                    <div className="intensive-score-comment">{extScore.overall}</div>
+                    {(extScore.results || []).map((r, i) => (
+                      <div className="intensive-ext-result" key={i}>
+                        <div className={`intensive-ext-verdict ${r.correct ? 'ok' : 'no'}`}>
+                          {r.correct ? '✓ 正确' : '✗ 有偏差'}：{r.q}
+                        </div>
+                        <div className="intensive-ext-reference">参考：{r.reference}</div>
+                        <div className="intensive-ext-feedback">{r.feedback}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            </>
             )}
           </>
         )}

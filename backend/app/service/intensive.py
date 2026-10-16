@@ -60,3 +60,14 @@ class IntensiveService:
     ) -> Dict[str, Any]:
         llm = LLMService()
         return await llm.score_summary(article["title"], article["body"], key_points, summary)
+
+    async def generate_extensive(self, article: Dict[str, Any]) -> Dict[str, Any]:
+        llm = LLMService()
+        return await llm.generate_extensive_guide(article["title"], article["body"])
+
+    async def score_extensive(
+        self, article: Dict[str, Any], passage: str,
+        questions: List[Dict[str, Any]], answers: Dict[str, str],
+    ) -> Dict[str, Any]:
+        llm = LLMService()
+        return await llm.score_extensive(article["title"], passage, questions, answers)

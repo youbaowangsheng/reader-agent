@@ -188,6 +188,67 @@ class LLMService:
             pass
         return {"error": "评分失败", "raw": content[:500]}
 
+    async def generate_extensive_guide(self, title: str, body: str) -> Dict[str, Any]:
+        """生成泛读材料（150-300 词节选 + 大意检测题）。"""
+        system_prompt = (
+            "你是高中英语泛读教练。给一篇英文长文生成「泛读材料」，帮助学生练习快速阅读、抓大意。\n"
+            "任务：\n"
+            "1. passage：从长文里提取一个 150-300 词的「连续节选」（必须逐字摘取原文，不修改、不重写，保持段落完整，优先选最能代表文章主旨的开头段落）\n"
+            "2. questions：2-3 道开放式大意检测题，考察主旨和关键信息（英文提问）\n"
+            "3. 每道题的 answer：参考答案（英文）\n"
+            "只输出 JSON，不要 markdown。"
+        )
+        user_prompt = (
+            f"文章标题：{title}\n\n文章正文：\n{body[:6000]}\n\n请输出 JSON：\n"
+            + json.dumps({
+                "passage": "150-300词的原文节选",
+                "questions": [
+                    {"q": "What is the passage mainly about?", "answer": "..."},
+                    {"q": "What key details does the passage mention?", "answer": "..."},
+                ],
+            }, ensure_ascii=False, indent=2)
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        content = await self._chat(messages, json_mode=True, temperature=0.4)
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+        return {"error": "生成泛读材料失败", "raw": content[:500]}
+
+    async def score_extensive(
+        self, title: str, passage: str, questions: List[Dict[str, Any]], answers: Dict[str, str]
+    ) -> Dict[str, Any]:
+        """评分泛读大意检测：判断学生回答 + 参考答案 + 中文反馈。"""
+        system_prompt = (
+            "你是高中英语泛读教练。判断学生的泛读大意回答是否正确，给参考答案和中文反馈。\n"
+            "只输出 JSON：{\"results\": [{\"q\":\"问题\", \"correct\": true/false, "
+            "\"reference\":\"参考答案\", \"feedback\":\"中文反馈\"}], \"overall\":\"总评(中文)\"}"
+        )
+        user_prompt = (
+            f"文章标题：{title}\n\n泛读节选：\n{passage}\n\n"
+            f"问题与参考答案：\n{json.dumps(questions, ensure_ascii=False)}\n\n"
+            f"学生回答：\n{json.dumps(answers, ensure_ascii=False)}\n\n"
+            "请判断每个回答是否正确，给参考答案和中文反馈。"
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        content = await self._chat(messages, json_mode=True, temperature=0.3)
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+        return {"error": "泛读评分失败", "raw": content[:500]}
+
 
 def get_llm_service() -> LLMService:
     return LLMService()
