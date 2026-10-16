@@ -17,6 +17,8 @@ function IntensivePage({ active }) {
   const [answers, setAnswers] = useState({});
   const [extScore, setExtScore] = useState(null);
   const [extScoring, setExtScoring] = useState(false);
+  const [guideCache, setGuideCache] = useState({});
+  const [generatingIds, setGeneratingIds] = useState({});
   const currentIdRef = useRef(null);
 
   useEffect(() => {
@@ -27,10 +29,12 @@ function IntensivePage({ active }) {
 
   const selectArticle = (id) => {
     currentIdRef.current = id;
-    setSelected(null); setGuide(null); setScore(null); setSummary('');
+    setSelected(null);
+    setGuide(guideCache[id] || null);
+    setGenerating(!!generatingIds[id]);
+    setScore(null); setSummary('');
     setExtensive(null); setAnswers({}); setExtScore(null);
-    setGenerating(false); setScoring(false);
-    setGenExtLoading(false); setExtScoring(false);
+    setScoring(false); setGenExtLoading(false); setExtScoring(false);
     api.getIntensiveArticle(id).then(r => {
       if (currentIdRef.current === id) setSelected(r.data);
     }).catch(() => {});
@@ -61,10 +65,14 @@ function IntensivePage({ active }) {
   const genGuide = () => {
     if (!selected) return;
     const id = selected.id;
+    setGeneratingIds(g => ({ ...g, [id]: true }));
     setGenerating(true); setGuide(null); setScore(null);
     api.generateIntensiveGuide(id).then(r => {
+      if (r.data && !r.data.error) setGuideCache(c => ({ ...c, [id]: r.data }));
+      setGeneratingIds(g => { const n = { ...g }; delete n[id]; return n; });
       if (currentIdRef.current === id) { setGuide(r.data); setGenerating(false); }
     }).catch(() => {
+      setGeneratingIds(g => { const n = { ...g }; delete n[id]; return n; });
       if (currentIdRef.current === id) setGenerating(false);
     });
   };
@@ -148,6 +156,10 @@ function IntensivePage({ active }) {
                 {(guide.paragraphs || []).map(p => (
                   <div className="intensive-para" key={p.idx}>
                     <div className="intensive-para-tag">第 {p.idx} 段</div>
+
+                    {p.text && (
+                      <div className="intensive-para-text">{p.text}</div>
+                    )}
 
                     {(p.vocab || []).length > 0 && (
                       <div className="intensive-vocab">

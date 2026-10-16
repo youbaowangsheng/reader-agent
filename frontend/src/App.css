@@ -507,6 +507,7 @@ p:hover .ask-inline{opacity:1}
 .intensive-ext-reference{font-size:13px;color:var(--text-3);line-height:1.6;background:var(--bg-subtle);padding:8px 10px;border-radius:8px;margin-bottom:4px}
 .intensive-ext-feedback{font-size:13px;color:var(--text-2);line-height:1.6}
 .intensive-ext-result{padding:12px 0;border-bottom:1px solid var(--border)}
+.intensive-para-text{font-size:15px;line-height:1.9;color:var(--text);background:#f8fafc;border-left:3px solid var(--accent);padding:12px 14px;border-radius:8px;margin:8px 0;white-space:pre-wrap}
 @media (max-width: 900px) {
   .intensive-list{width:100%;border-right:none}
   .intensive-list.has-selection{display:none}

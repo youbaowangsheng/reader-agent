@@ -123,6 +123,7 @@ class LLMService:
             "要求（务必精简，控制输出长度）：\n"
             "1. overview：一句话中文概述（40字内）\n"
             "2. paragraphs：把文章合并成 5-8 段（每段约 100-150 词），逐段带读。每段提取：\n"
+            "   - text：本段原文（英文，从原文完整摘录，不要改写或截断）\n"
             "   - vocab：重点生词 2-3 个（只挑最关键的），每个含 word/pos/meaning（中文）/example（英文短句）\n"
             "   - long_sentences：长难句 0-1 个，每个含 text（原文）+ analysis（简短中文拆解）\n"
             "   - context：本段背景知识（中文，一句话，没有就省略）\n"
@@ -138,6 +139,7 @@ class LLMService:
                 "overview": "...",
                 "paragraphs": [{
                     "idx": 1,
+                    "text": "...",
                     "vocab": [{"word": "...", "ipa": "...", "pos": "n.", "meaning": "...", "example": "..."}],
                     "long_sentences": [{"text": "...", "analysis": "..."}],
                     "context": "...",
