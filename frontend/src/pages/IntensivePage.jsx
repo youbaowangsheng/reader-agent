@@ -112,7 +112,7 @@ function IntensivePage({ active }) {
             {mode === 'intensive' ? (
               <>
                 <button className="intensive-gen-btn" onClick={genGuide} disabled={generating}>
-                  {generating ? '🤖 AI 正在逐段精读，约需 1-2 分钟…' : guide ? '🔄 重新生成带读' : '🤖 AI 带读'}
+                  {generating ? '🤖 AI 正在逐段精读…' : guide ? '🔄 重新生成带读' : '🤖 AI 带读'}
                 </button>
 
                 {!guide && !generating && (
