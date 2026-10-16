@@ -4,6 +4,7 @@ import { api } from './api/client';
 import ShelfPage from './pages/ShelfPage';
 import MarketPage from './pages/MarketPage';
 import ReaderPage from './pages/ReaderPage';
+import IntensivePage from './pages/IntensivePage';
 import './App.css';
 
 function App() {
@@ -61,6 +62,7 @@ function App() {
             openPaperId={openPaperId}
             onPaperConsumed={() => setOpenPaperId(null)}
           />
+          <IntensivePage active={activeTab === 'intensive'} />
         </div>
       </div>
     </Router>
@@ -88,6 +90,10 @@ function NavBar({ user, activeTab, onTabChange, onLogout }) {
             className={`nav-tab ${activeTab === 'market' ? 'active' : ''}`}
             onClick={() => onTabChange('market')}
           >市场</button>
+          <button
+            className={`nav-tab ${activeTab === 'intensive' ? 'active' : ''}`}
+            onClick={() => onTabChange('intensive')}
+          >精读</button>
         </div>
       </div>
       <div className="nav-right">

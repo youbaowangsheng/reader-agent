@@ -83,4 +83,10 @@ api.clearSessionMemory = (paperId, sessionId) => api.delete(`/papers/${paperId}/
 api.getMarketBooks = () => api.get('/market/books');
 api.importBook = (pdfPath, filename) => api.post('/market/import', { pdf_path: pdfPath, filename });
 
+// Intensive Reading (精读训练)
+api.getIntensiveArticles = () => api.get('/intensive/articles');
+api.getIntensiveArticle = (id) => api.get(`/intensive/articles/${id}`);
+api.generateIntensiveGuide = (id) => api.post(`/intensive/articles/${id}/guide`);
+api.scoreSummary = (id, keyPoints, summary) => api.post(`/intensive/articles/${id}/score`, { key_points: keyPoints, summary });
+
 export { api };

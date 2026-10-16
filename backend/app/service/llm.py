@@ -116,6 +116,78 @@ class LLMService:
             pass
         return {"error": "生成导读失败", "raw": content[:500]}
 
+    async def generate_intensive_guide(self, title: str, body: str) -> Dict[str, Any]:
+        """生成精读带读（逐段生词/长难句/背景/观点 + 概要写作任务）。"""
+        system_prompt = (
+            "你是高中英语精读教练。给一篇英文外刊文章生成「AI 带读」，帮助高中生提升精读能力。\n"
+            "要求：\n"
+            "1. overview：一句话中文概述（这篇文章讲了什么，50字内）\n"
+            "2. paragraphs：把文章切成若干段，逐段带读。每段提取：\n"
+            "   - vocab：重点生词 2-5 个（挑学生可能不会的），每个含 word/ipa/pos/meaning/example\n"
+            "   - long_sentences：长难句 0-2 个，每个含 text（原文）+ analysis（中文语法拆解：主句、从句、修饰关系）\n"
+            "   - context：本段涉及的背景知识（中文，可选，没有就省略）\n"
+            "   - idea：本段作者的核心观点或论据（中文，一句话）\n"
+            "3. writing_task：读后概要写作任务\n"
+            "   - instruction：用 60-100 词概括全文\n"
+            "   - key_points：评分要点 3-5 个（中文）\n"
+            "只输出 JSON，不要任何 markdown 包裹，不要输出正文。"
+        )
+        user_prompt = (
+            f"文章标题：{title}\n\n文章正文：\n{body}\n\n请输出 JSON：\n"
+            + json.dumps({
+                "overview": "...",
+                "paragraphs": [{
+                    "idx": 1,
+                    "vocab": [{"word": "...", "ipa": "...", "pos": "n.", "meaning": "...", "example": "..."}],
+                    "long_sentences": [{"text": "...", "analysis": "..."}],
+                    "context": "...",
+                    "idea": "...",
+                }],
+                "writing_task": {"type": "summary", "instruction": "...", "key_points": ["..."]},
+            }, ensure_ascii=False, indent=2)
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        content = await self._chat(messages, json_mode=True, temperature=0.4)
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+        return {"error": "生成精读带读失败", "raw": content[:500]}
+
+    async def score_summary(
+        self, title: str, body: str, key_points: List[str], summary: str
+    ) -> Dict[str, Any]:
+        """评分概要写作（要点覆盖/语言准确/连贯性）。"""
+        system_prompt = (
+            "你是高中英语老师。给学生的概要写作评分。\n"
+            "评分维度：要点覆盖、语言准确性、连贯性。\n"
+            "只输出 JSON：{\"score\": 总分(0-100), \"coverage\": 要点覆盖分(0-100), "
+            "\"language\": 语言分(0-100), \"coherence\": 连贯分(0-100), "
+            "\"comment\": 中文点评, \"suggestions\": [改进建议(中文)]}"
+        )
+        user_prompt = (
+            f"文章标题：{title}\n\n文章正文（前1500词）：\n{body[:1500]}\n\n"
+            f"评分要点：{json.dumps(key_points, ensure_ascii=False)}\n\n"
+            f"学生概要：\n{summary}\n\n请评分。"
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        content = await self._chat(messages, json_mode=True, temperature=0.3)
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+        return {"error": "评分失败", "raw": content[:500]}
+
 
 def get_llm_service() -> LLMService:
     return LLMService()
