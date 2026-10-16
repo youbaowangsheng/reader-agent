@@ -251,6 +251,37 @@ class LLMService:
             pass
         return {"error": "泛读评分失败", "raw": content[:500]}
 
+    async def generate_extensive_questions(self, title: str, body: str) -> Dict[str, Any]:
+        """针对泛读短文生成大意检测题（短文即全文，不提取节选）。"""
+        system_prompt = (
+            "你是高中英语泛读教练。针对一篇英文短文生成大意检测题，帮助学生练习快速阅读、抓大意。\n"
+            "任务：\n"
+            "1. questions：2-3 道开放式大意检测题，考察文章主旨和关键信息（英文提问，问题简短）\n"
+            "2. 每道题的 answer：参考答案（英文，一句话）\n"
+            "只输出 JSON，不要 markdown。"
+        )
+        user_prompt = (
+            f"文章标题：{title}\n\n文章正文：\n{body}\n\n请输出 JSON：\n"
+            + json.dumps({
+                "questions": [
+                    {"q": "What is the article mainly about?", "answer": "..."},
+                    {"q": "What key details does the article mention?", "answer": "..."},
+                ],
+            }, ensure_ascii=False, indent=2)
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        content = await self._chat(messages, json_mode=True, temperature=0.4)
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+        return {"error": "生成大意检测题失败", "raw": content[:500]}
+
 
 def get_llm_service() -> LLMService:
     return LLMService()

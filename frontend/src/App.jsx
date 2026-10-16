@@ -5,6 +5,7 @@ import ShelfPage from './pages/ShelfPage';
 import MarketPage from './pages/MarketPage';
 import ReaderPage from './pages/ReaderPage';
 import IntensivePage from './pages/IntensivePage';
+import ExtensivePage from './pages/ExtensivePage';
 import './App.css';
 
 function App() {
@@ -63,6 +64,7 @@ function App() {
             onPaperConsumed={() => setOpenPaperId(null)}
           />
           <IntensivePage active={activeTab === 'intensive'} />
+          <ExtensivePage active={activeTab === 'extensive'} />
         </div>
       </div>
     </Router>
@@ -94,6 +96,10 @@ function NavBar({ user, activeTab, onTabChange, onLogout }) {
             className={`nav-tab ${activeTab === 'intensive' ? 'active' : ''}`}
             onClick={() => onTabChange('intensive')}
           >精读</button>
+          <button
+            className={`nav-tab ${activeTab === 'extensive' ? 'active' : ''}`}
+            onClick={() => onTabChange('extensive')}
+          >泛读</button>
         </div>
       </div>
       <div className="nav-right">

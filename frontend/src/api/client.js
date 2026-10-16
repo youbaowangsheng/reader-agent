@@ -88,7 +88,11 @@ api.getIntensiveArticles = () => api.get('/intensive/articles');
 api.getIntensiveArticle = (id) => api.get(`/intensive/articles/${id}`);
 api.generateIntensiveGuide = (id) => api.post(`/intensive/articles/${id}/guide`);
 api.scoreSummary = (id, keyPoints, summary) => api.post(`/intensive/articles/${id}/score`, { key_points: keyPoints, summary });
-api.generateExtensive = (id) => api.post(`/intensive/articles/${id}/extensive`);
-api.scoreExtensive = (id, passage, questions, answers) => api.post(`/intensive/articles/${id}/extensive/score`, { passage, questions, answers });
+
+// Extensive Reading (泛读训练：新闻短文)
+api.getExtensiveArticles = () => api.get('/extensive/articles');
+api.getExtensiveArticle = (id) => api.get(`/extensive/articles/${id}`);
+api.generateExtensiveQuestions = (id) => api.post(`/extensive/articles/${id}/questions`);
+api.scoreExtensive = (id, questions, answers) => api.post(`/extensive/articles/${id}/score`, { questions, answers });
 
 export { api };
