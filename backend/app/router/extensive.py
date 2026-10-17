@@ -29,6 +29,24 @@ async def get_article(article_id: int):
     return article
 
 
+@router.get("/articles/{article_id}/questions")
+async def get_questions(article_id: int):
+    """返回已生成的大意检测题（不重新生成）。"""
+    article = _service.get_article(article_id)
+    if not article:
+        raise HTTPException(404, "Article not found")
+    questions = _service.get_generated_questions(article_id)
+    if not questions:
+        raise HTTPException(404, "Questions not generated yet")
+    return questions
+
+
+@router.get("/generated")
+async def list_generated():
+    """已生成检测题的文章目录。"""
+    return _service.list_generated()
+
+
 @router.post("/articles/{article_id}/questions")
 async def generate_questions(article_id: int):
     article = _service.get_article(article_id)

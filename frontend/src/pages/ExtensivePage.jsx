@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api/client';
 
-function ExtensivePage({ active }) {
+function ExtensivePage({ active, openArticle }) {
   const [articles, setArticles] = useState([]);
   const [selected, setSelected] = useState(null);
   const [questions, setQuestions] = useState(null);
@@ -17,12 +17,24 @@ function ExtensivePage({ active }) {
     }
   }, [active]);
 
+  // 从导读目录页跳转过来时，打开指定文章
+  useEffect(() => {
+    if (active && openArticle && openArticle.id != null) {
+      selectArticle(openArticle.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openArticle]);
+
   const selectArticle = (id) => {
     currentIdRef.current = id;
     setSelected(null); setQuestions(null); setAnswers({}); setScore(null);
     setGenerating(false); setScoring(false);
     api.getExtensiveArticle(id).then(r => {
       if (currentIdRef.current === id) setSelected(r.data);
+    }).catch(() => {});
+    // 自动加载已生成的大意检测题（持久化，下次直接看）
+    api.getExtensiveQuestions(id).then(r => {
+      if (currentIdRef.current === id && r.data) setQuestions(r.data);
     }).catch(() => {});
   };
 

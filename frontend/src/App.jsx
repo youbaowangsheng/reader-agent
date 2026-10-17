@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router } from 'react-router-dom';
 import { api } from './api/client';
 import ShelfPage from './pages/ShelfPage';
 import MarketPage from './pages/MarketPage';
-import ReaderPage from './pages/ReaderPage';
+import GuideIndexPage from './pages/GuideIndexPage';
 import IntensivePage from './pages/IntensivePage';
 import ExtensivePage from './pages/ExtensivePage';
 import './App.css';
@@ -11,8 +11,8 @@ import './App.css';
 function App() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [activeTab, setActiveTab] = useState('reader');
-  const [openPaperId, setOpenPaperId] = useState(null);
+  const [activeTab, setActiveTab] = useState('guide');
+  const [openArticle, setOpenArticle] = useState(null);
 
   useEffect(() => {
     if (token) {
@@ -36,10 +36,10 @@ function App() {
     setToken(null);
   };
 
-  // 书架点击论文 → 切到导读并选中
-  const handleOpenPaper = (paperId) => {
-    setOpenPaperId(paperId);
-    setActiveTab('reader');
+  // 导读目录页点击文章 → 切到精读/泛读并打开指定文章
+  const handleOpenArticle = (type, id) => {
+    setOpenArticle({ type, id, nonce: Date.now() });
+    setActiveTab(type);
   };
 
   if (!token) {
@@ -56,15 +56,17 @@ function App() {
           onLogout={handleLogout}
         />
         <div className="content">
-          <ShelfPage active={activeTab === 'shelf'} onOpenPaper={handleOpenPaper} />
-          <MarketPage active={activeTab === 'market'} onOpenPaper={handleOpenPaper} />
-          <ReaderPage
-            active={activeTab === 'reader'}
-            openPaperId={openPaperId}
-            onPaperConsumed={() => setOpenPaperId(null)}
+          <GuideIndexPage active={activeTab === 'guide'} onOpenArticle={handleOpenArticle} />
+          <IntensivePage
+            active={activeTab === 'intensive'}
+            openArticle={openArticle?.type === 'intensive' ? openArticle : null}
           />
-          <IntensivePage active={activeTab === 'intensive'} />
-          <ExtensivePage active={activeTab === 'extensive'} />
+          <ExtensivePage
+            active={activeTab === 'extensive'}
+            openArticle={openArticle?.type === 'extensive' ? openArticle : null}
+          />
+          <ShelfPage active={activeTab === 'shelf'} onOpenPaper={() => {}} />
+          <MarketPage active={activeTab === 'market'} onOpenPaper={() => {}} />
         </div>
       </div>
     </Router>
@@ -81,17 +83,9 @@ function NavBar({ user, activeTab, onTabChange, onLogout }) {
         </div>
         <div className="nav-tabs">
           <button
-            className={`nav-tab ${activeTab === 'reader' ? 'active' : ''}`}
-            onClick={() => onTabChange('reader')}
+            className={`nav-tab ${activeTab === 'guide' ? 'active' : ''}`}
+            onClick={() => onTabChange('guide')}
           >导读</button>
-          <button
-            className={`nav-tab ${activeTab === 'shelf' ? 'active' : ''}`}
-            onClick={() => onTabChange('shelf')}
-          >书架</button>
-          <button
-            className={`nav-tab ${activeTab === 'market' ? 'active' : ''}`}
-            onClick={() => onTabChange('market')}
-          >市场</button>
           <button
             className={`nav-tab ${activeTab === 'intensive' ? 'active' : ''}`}
             onClick={() => onTabChange('intensive')}
@@ -100,6 +94,14 @@ function NavBar({ user, activeTab, onTabChange, onLogout }) {
             className={`nav-tab ${activeTab === 'extensive' ? 'active' : ''}`}
             onClick={() => onTabChange('extensive')}
           >泛读</button>
+          <button
+            className={`nav-tab ${activeTab === 'shelf' ? 'active' : ''}`}
+            onClick={() => onTabChange('shelf')}
+          >书架</button>
+          <button
+            className={`nav-tab ${activeTab === 'market' ? 'active' : ''}`}
+            onClick={() => onTabChange('market')}
+          >市场</button>
         </div>
       </div>
       <div className="nav-right">
@@ -135,7 +137,7 @@ function LoginPage({ onLogin }) {
           <span className="logo">R</span>
           Reader Agent
         </div>
-        <p className="subtitle">英文论文阅读助手</p>
+        <p className="subtitle">外刊精读 · 泛读训练</p>
         <form onSubmit={handleSubmit}>
           <input
             type="email"

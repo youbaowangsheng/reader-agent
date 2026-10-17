@@ -3,7 +3,7 @@ import { api } from '../api/client';
 
 const LEVEL_COLOR = { L1: '#4caf50', L2: '#8bc34a', L3: '#ffb300', L4: '#ff7043', L5: '#e53935' };
 
-function IntensivePage({ active }) {
+function IntensivePage({ active, openArticle }) {
   const [articles, setArticles] = useState([]);
   const [selected, setSelected] = useState(null);
   const [guide, setGuide] = useState(null);
@@ -21,6 +21,14 @@ function IntensivePage({ active }) {
     }
   }, [active]);
 
+  // 从导读目录页跳转过来时，打开指定文章
+  useEffect(() => {
+    if (active && openArticle && openArticle.id != null) {
+      selectArticle(openArticle.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openArticle]);
+
   const selectArticle = (id) => {
     currentIdRef.current = id;
     setSelected(null);
@@ -31,6 +39,15 @@ function IntensivePage({ active }) {
     api.getIntensiveArticle(id).then(r => {
       if (currentIdRef.current === id) setSelected(r.data);
     }).catch(() => {});
+    // 自动加载已生成的导读（持久化，下次直接看，不重新生成）
+    if (!guideCache[id]) {
+      api.getIntensiveGuide(id).then(r => {
+        if (currentIdRef.current === id && r.data) {
+          setGuide(r.data);
+          setGuideCache(c => ({ ...c, [id]: r.data }));
+        }
+      }).catch(() => {});
+    }
   };
 
   const genGuide = () => {

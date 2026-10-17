@@ -95,4 +95,9 @@ api.getExtensiveArticle = (id) => api.get(`/extensive/articles/${id}`);
 api.generateExtensiveQuestions = (id) => api.post(`/extensive/articles/${id}/questions`);
 api.scoreExtensive = (id, questions, answers) => api.post(`/extensive/articles/${id}/score`, { questions, answers });
 
+// 已生成内容（持久化，不重复生成）
+api.getGenerated = () => api.get('/generated');
+api.getIntensiveGuide = (id) => api.get(`/intensive/articles/${id}/guide`);
+api.getExtensiveQuestions = (id) => api.get(`/extensive/articles/${id}/questions`);
+
 export { api };

@@ -1,16 +1,19 @@
-"""精读训练服务：语料库加载 + 精读带读生成 + 概要写作评分。"""
+"""精读训练服务：语料库加载 + 精读导读生成（持久化）+ 概要写作评分。"""
 import json
 import os
 from typing import Any, Dict, List, Optional
 
 from app.service.llm import LLMService
+from app.service.generated import GeneratedStore, now_iso
 
 
 class IntensiveService:
-    """精读训练（真实外刊 AI 带读 + 概要写作），独立于论文解析流程。"""
+    """精读训练（真实外刊 AI 导读 + 概要写作），独立于论文解析流程。"""
 
     def __init__(self):
         self.articles = self._load_articles()
+        data_dir = os.path.dirname(self._data_path())
+        self.guide_store = GeneratedStore(os.path.join(data_dir, "generated", "guides.json"))
 
     def _data_path(self) -> str:
         # backend/data/articles_v1.json
@@ -51,23 +54,45 @@ class IntensiveService:
                 return a
         return None
 
+    def get_generated_guide(self, article_id: int) -> Optional[Dict[str, Any]]:
+        """返回已生成的导读（不重新生成），无则 None。"""
+        cached = self.guide_store.get(article_id)
+        return cached.get("guide") if cached else None
+
+    def list_generated(self) -> List[Dict[str, Any]]:
+        """列出所有已生成导读的文章（目录页用）。"""
+        result = []
+        for aid, cached in self.guide_store.all().items():
+            try:
+                article = self.get_article(int(aid))
+            except ValueError:
+                continue
+            if not article:
+                continue
+            result.append({
+                "article_id": article["id"],
+                "title": article["title"],
+                "level": article["level"],
+                "topic": article["topic"],
+                "word_count": article["word_count"],
+                "generated_at": cached.get("generated_at", ""),
+            })
+        result.sort(key=lambda x: x.get("generated_at", ""), reverse=True)
+        return result
+
     async def generate_guide(self, article: Dict[str, Any]) -> Dict[str, Any]:
+        """生成导读（有缓存直接返回，避免重复生成浪费 token）。"""
+        cached = self.guide_store.get(article["id"])
+        if cached and cached.get("guide"):
+            return cached["guide"]
         llm = LLMService()
-        return await llm.generate_intensive_guide(article["title"], article["body"])
+        guide = await llm.generate_intensive_guide(article["title"], article["body"])
+        if guide and "error" not in guide:
+            self.guide_store.set(article["id"], {"guide": guide, "generated_at": now_iso()})
+        return guide
 
     async def score_summary(
         self, article: Dict[str, Any], key_points: List[str], summary: str
     ) -> Dict[str, Any]:
         llm = LLMService()
         return await llm.score_summary(article["title"], article["body"], key_points, summary)
-
-    async def generate_extensive(self, article: Dict[str, Any]) -> Dict[str, Any]:
-        llm = LLMService()
-        return await llm.generate_extensive_guide(article["title"], article["body"])
-
-    async def score_extensive(
-        self, article: Dict[str, Any], passage: str,
-        questions: List[Dict[str, Any]], answers: Dict[str, str],
-    ) -> Dict[str, Any]:
-        llm = LLMService()
-        return await llm.score_extensive(article["title"], passage, questions, answers)
