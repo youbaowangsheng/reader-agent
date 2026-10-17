@@ -69,7 +69,7 @@ function ExtensivePage({ active }) {
         ))}
       </div>
 
-      <main className="intensive-main">
+      <main className={`intensive-main ${selected ? 'has-selection' : ''}`}>
         {!selected ? (
           <div className="intensive-placeholder">← 选一篇新闻开始泛读</div>
         ) : (

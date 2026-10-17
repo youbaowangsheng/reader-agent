@@ -4,7 +4,7 @@
 """
 import json
 import httpx
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from config import get_settings
 
@@ -31,6 +31,7 @@ class LLMService:
         messages: List[Dict[str, Any]],
         json_mode: bool = False,
         temperature: float = 0.4,
+        max_tokens: Optional[int] = None,
     ) -> str:
         """调用 chat completions，返回文本内容。"""
         url = self._chat_url()
@@ -43,6 +44,8 @@ class LLMService:
             "messages": messages,
             "temperature": temperature,
         }
+        if max_tokens:
+            payload["max_tokens"] = max_tokens
         if json_mode:
             payload["response_format"] = {"type": "json_object"}
         async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -152,7 +155,7 @@ class LLMService:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
-        content = await self._chat(messages, json_mode=True, temperature=0.4)
+        content = await self._chat(messages, json_mode=True, temperature=0.4, max_tokens=8192)
         try:
             parsed = json.loads(content)
             if isinstance(parsed, dict):
