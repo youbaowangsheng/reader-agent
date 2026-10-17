@@ -100,4 +100,17 @@ api.getGenerated = () => api.get('/generated');
 api.getIntensiveGuide = (id) => api.get(`/intensive/articles/${id}/guide`);
 api.getExtensiveQuestions = (id) => api.get(`/extensive/articles/${id}/questions`);
 
+// Magazine (杂志书架：上传 → 拆分 → 评级入库)
+api.getMagazines = () => api.get('/magazine');
+api.getMagazine = (id) => api.get(`/magazine/${id}`);
+api.uploadMagazine = async (file, onProgress) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/magazine/upload', formData, {
+    onUploadProgress: onProgress,
+    timeout: 120000,
+  });
+};
+api.importMagazine = (id) => api.post(`/magazine/${id}/import`);
+
 export { api };

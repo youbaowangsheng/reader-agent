@@ -11,7 +11,6 @@ class IntensiveService:
     """精读训练（真实外刊 AI 导读 + 概要写作），独立于论文解析流程。"""
 
     def __init__(self):
-        self.articles = self._load_articles()
         data_dir = os.path.dirname(self._data_path())
         self.guide_store = GeneratedStore(os.path.join(data_dir, "generated", "guides.json"))
 
@@ -45,11 +44,11 @@ class IntensiveService:
         return [
             {"id": a["id"], "title": a["title"], "level": a["level"],
              "topic": a["topic"], "word_count": a["word_count"]}
-            for a in self.articles
+            for a in self._load_articles()
         ]
 
     def get_article(self, article_id: int) -> Optional[Dict[str, Any]]:
-        for a in self.articles:
+        for a in self._load_articles():
             if a["id"] == article_id:
                 return a
         return None

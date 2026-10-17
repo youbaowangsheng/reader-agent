@@ -285,6 +285,38 @@ class LLMService:
             pass
         return {"error": "生成大意检测题失败", "raw": content[:500]}
 
+    async def rate_article(self, title: str, body: str) -> Dict[str, Any]:
+        """评定文章难度等级 + 规范化标题 + fit（精读/泛读）。"""
+        system_prompt = (
+            "你是英语阅读教练。给英文文章评定难度等级并做规范化处理。只输出 JSON。"
+        )
+        user_prompt = (
+            f"标题：{title}\n"
+            f"正文（前 1600 词）：\n{body[:1600]}\n\n"
+            "只返回 JSON（不要其他文字）：\n"
+            '{"level":"L2","title_clean":"规范化的标题","fit":"精读","topic":"科技"}\n\n'
+            "难度标准（面向高中学生）：\n"
+            "L1 初中拔高：短句、日常话题、少量生词（300-500词）\n"
+            "L2 会考基础：常见高中词汇、少量复合句\n"
+            "L3 高考过渡：出现长难句、科技/文化话题\n"
+            "L4 高考标准：抽象话题、词汇密度高\n"
+            "L5 高考压轴：长难句、复杂论证、时事评论\n\n"
+            "fit 取值：精读（600-1200词、有观点/论证、值得逐段带读）或 泛读（150-300词、信息类短文、抓大意即可）。\n"
+            "文章太长(>2000词)或不适合学生，fit 填\"不适合\"。"
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        content = await self._chat(messages, json_mode=True, temperature=0.3)
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+        return {"error": "评级失败", "raw": content[:200]}
+
 
 def get_llm_service() -> LLMService:
     return LLMService()

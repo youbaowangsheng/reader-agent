@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api/client';
 
-function MarketPage({ active, onOpenPaper }) {
-  const [categories, setCategories] = useState([]);
-  const [total, setTotal] = useState(0);
+function MarketPage({ active }) {
+  const [data, setData] = useState({ total: 0, categories: [], oss_ready: false });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [importing, setImporting] = useState({});
-  const [imported, setImported] = useState({});
 
   useEffect(() => {
     if (active) loadBooks();
@@ -15,74 +11,59 @@ function MarketPage({ active, onOpenPaper }) {
 
   const loadBooks = async () => {
     setLoading(true);
-    setError('');
     try {
       const res = await api.getMarketBooks();
-      setCategories(res.data.categories || []);
-      setTotal(res.data.total || 0);
+      setData(res.data || { total: 0, categories: [], oss_ready: false });
     } catch (err) {
-      setError('加载失败：' + (err.response?.data?.detail || err.message));
+      setData({ total: 0, categories: [], oss_ready: false });
     } finally {
       setLoading(false);
     }
   };
 
-  const formatSize = (bytes) => {
-    if (!bytes) return '';
-    if (bytes > 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' MB';
-    return (bytes / 1024).toFixed(0) + ' KB';
-  };
-
-  const handleImport = async (book) => {
-    setImporting(prev => ({ ...prev, [book.filename]: true }));
-    try {
-      const res = await api.importBook(book.pdf_path, book.filename);
-      setImported(prev => ({ ...prev, [book.filename]: true }));
-    } catch (err) {
-      alert('下载失败：' + (err.response?.data?.detail || err.message));
-    } finally {
-      setImporting(prev => ({ ...prev, [book.filename]: false }));
-    }
-  };
-
   if (!active) return null;
+
+  const { categories, total, oss_ready } = data;
 
   return (
     <div id="page-market" className="page active">
       <div className="market-hero">
-        <h3>英语杂志书库</h3>
-        <p>共 {total} 期 · 来自 GitHub 仓库，下载到书架后自动解析生成 AI 导读</p>
+        <h3>图书市场</h3>
+        <p>英语杂志 / 期刊书库 · 内容来自阿里云 OSS</p>
       </div>
 
       {loading ? (
         <div className="loading">加载中…</div>
-      ) : error ? (
-        <div className="empty-state" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-4)' }}>{error}</div>
+      ) : !oss_ready ? (
+        <div className="market-empty">
+          <div className="market-empty-cover">📚</div>
+          <h4>图书市场建设中</h4>
+          <p>内容将从阿里云 OSS 加载，配置好后这里会显示图书封面</p>
+        </div>
+      ) : total === 0 ? (
+        <div className="market-empty">
+          <div className="market-empty-cover">📚</div>
+          <h4>暂无图书</h4>
+        </div>
       ) : (
         categories.map(cat => (
           <div key={cat.category} className="market-cat">
             <div className="market-cat-head">
               <h4>{cat.name}</h4>
-              <span>{cat.books.length} 期</span>
+              <span>{cat.books.length} 本</span>
             </div>
-            <div className="market-book-list">
+            <div className="market-book-grid">
               {cat.books.map(book => (
-                <div key={book.pdf_path} className="market-book-item">
-                  <div className="mb-info">
-                    <div className="mb-name">{book.filename.replace(/\.pdf$/i, '')}</div>
-                    <div className="mb-meta">{book.issue} · {formatSize(book.size)}</div>
+                <div key={book.title || book.pdf_url} className="market-book-card">
+                  <div className="mb-cover">
+                    {book.cover_url ? (
+                      <img src={book.cover_url} alt={book.title} loading="lazy" />
+                    ) : (
+                      <span className="mb-cover-placeholder">📖</span>
+                    )}
                   </div>
-                  {imported[book.filename] ? (
-                    <span className="mb-done">已下载 ✓ 去「书架」点 AI 阅读</span>
-                  ) : (
-                    <button
-                      className="btn-add"
-                      disabled={importing[book.filename]}
-                      onClick={() => handleImport(book)}
-                    >
-                      {importing[book.filename] ? '下载中…' : '↓ 下载到书架'}
-                    </button>
-                  )}
+                  <div className="mb-title">{book.title}</div>
+                  <div className="mb-meta">{book.issue || ''}</div>
                 </div>
               ))}
             </div>

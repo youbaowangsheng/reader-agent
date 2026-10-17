@@ -3,8 +3,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List, Optional
 import httpx
-import time
-import uuid
 import os
 
 from app.model.database import get_db
@@ -29,9 +27,6 @@ async def get_recommendations(
     user: AuthUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get AI-recommended papers for the user based on their projects."""
-    # For now, return a curated list of ready papers
-    # In production, this would call FIPAI to generate recommendations
     stmt = (
         select(Paper)
         .where(Paper.user_id == user.id, Paper.status == 'ready')
@@ -40,15 +35,8 @@ async def get_recommendations(
     )
     result = await db.execute(stmt)
     papers = result.scalars().all()
-
     return [
-        PaperRecommendItem(
-            id=p.id,
-            filename=p.filename,
-            status=p.status,
-            tag="📄 已解析",
-            hot_count=0,
-        )
+        PaperRecommendItem(id=p.id, filename=p.filename, status=p.status, tag="📄 已解析", hot_count=0)
         for p in papers
     ]
 
@@ -58,7 +46,6 @@ async def get_hot_papers(
     user: AuthUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get hot papers with most annotations."""
     stmt = (
         select(
             Paper.id,
@@ -74,15 +61,8 @@ async def get_hot_papers(
     )
     result = await db.execute(stmt)
     rows = result.all()
-
     return [
-        PaperRecommendItem(
-            id=row.id,
-            filename=row.filename,
-            status=row.status,
-            tag="🔥 热读",
-            hot_count=row.fact_count,
-        )
+        PaperRecommendItem(id=row.id, filename=row.filename, status=row.status, tag="🔥 热读", hot_count=row.fact_count)
         for row in rows
     ]
 
@@ -93,7 +73,6 @@ async def search_papers(
     user: AuthUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Search papers by filename or metadata."""
     search = f"%{req.query}%"
     stmt = (
         select(Paper)
@@ -106,17 +85,10 @@ async def search_papers(
     )
     result = await db.execute(stmt)
     papers = result.scalars().all()
-
     return MarketSearchResponse(
         query=req.query,
         results=[
-            PaperRecommendItem(
-                id=p.id,
-                filename=p.filename,
-                status=p.status,
-                tag="🔍 搜索结果",
-                hot_count=0,
-            )
+            PaperRecommendItem(id=p.id, filename=p.filename, status=p.status, tag="🔍 搜索结果", hot_count=0)
             for p in papers
         ],
     )
@@ -128,120 +100,46 @@ async def import_by_doi(
     user: AuthUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Import paper by DOI (placeholder - would download from arXiv/DOI)."""
-    # Placeholder: in production, would call FIPAI or arXiv API
-    return {
-        "message": "DOI import not yet implemented",
-        "doi": doi,
-    }
+    return {"message": "DOI import not yet implemented", "doi": doi}
 
 
-# ===== GitHub 图书市场 =====
-import re
+# ===== 图书市场（阿里云 OSS） =====
+# OSS 图书目录约定：
+#   {base}/books.json            -> {"books": [{title, cover_url, pdf_url, category, category_name, issue, size}]}
+#   {base}/covers/{name}.jpg     -> 封面图
+#   {base}/pdfs/{name}.pdf       -> PDF
+# OSS 尚未配置时返回空列表 + oss_ready=false，前端显示"建设中"。
 
-GITHUB_OWNER = "youbaowangsheng"
-GITHUB_REPO = "awesome-english-ebooks"
-GITHUB_BRANCH = "master"
-
-CATEGORY_NAMES = {
-    "01_economist": "经济学人",
-    "02_new_yorker": "纽约客",
-    "04_atlantic": "大西洋月刊",
-    "05_wired": "连线",
-}
-
-_books_cache = {"data": None, "ts": 0}
-_BOOKS_CACHE_TTL = 3600  # 1 小时
-
-
-async def _fetch_books():
-    """从 GitHub 仓库读取图书（英语杂志）列表，带缓存。"""
-    now = time.time()
-    if _books_cache["data"] and now - _books_cache["ts"] < _BOOKS_CACHE_TTL:
-        return _books_cache["data"]
-
-    url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/git/trees/{GITHUB_BRANCH}?recursive=1"
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.get(url)
-        resp.raise_for_status()
-        tree = resp.json().get("tree", [])
-
-    books = []
-    for item in tree:
-        path = item.get("path", "")
-        if not path.endswith(".pdf"):
-            continue
-        parts = path.split("/")
-        if len(parts) < 3:
-            continue
-        category, issue_dir, filename = parts[0], parts[1], parts[2]
-        if category not in CATEGORY_NAMES:
-            continue
-        m = re.search(r"\d{4}\.\d{2}\.\d{2}", issue_dir)
-        issue = m.group(0) if m else issue_dir
-        books.append({
-            "category": category,
-            "category_name": CATEGORY_NAMES[category],
-            "issue": issue,
-            "filename": filename,
-            "pdf_path": path,
-            "size": item.get("size", 0),
-        })
-
-    books.sort(key=lambda b: (b["category"], b["issue"]), reverse=True)
-    _books_cache["data"] = books
-    _books_cache["ts"] = now
-    return books
+OSS_BOOKS_JSON_URL = os.environ.get("OSS_BOOKS_JSON_URL", "")
 
 
 @router.get("/books")
-async def list_books(user: AuthUser = Depends(get_current_user)):
-    """列出 GitHub 仓库里的图书，按杂志分类分组。"""
+async def list_books():
+    """列出图书市场的书（从阿里云 OSS 读目录，未配置时返回空）。"""
+    if not OSS_BOOKS_JSON_URL:
+        return {"total": 0, "categories": [], "oss_ready": False}
+
     try:
-        books = await _fetch_books()
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(OSS_BOOKS_JSON_URL)
+            resp.raise_for_status()
+            data = resp.json()
+        books = data.get("books", []) if isinstance(data, dict) else []
     except Exception as e:
-        raise HTTPException(502, f"获取图书列表失败: {str(e)[:120]}")
+        return {"total": 0, "categories": [], "oss_ready": False, "error": str(e)[:120]}
 
     grouped = {}
     for b in books:
-        grouped.setdefault(b["category"], {"category": b["category"], "name": b["category_name"], "books": []})
-        grouped[b["category"]]["books"].append(b)
-    return {"total": len(books), "categories": list(grouped.values())}
+        cat = b.get("category", "其他")
+        grouped.setdefault(cat, {"category": cat, "name": b.get("category_name", cat), "books": []})
+        grouped[cat]["books"].append(b)
+    return {"total": len(books), "categories": list(grouped.values()), "oss_ready": True}
 
 
 @router.post("/import")
-async def import_book(
-    req: BookImportRequest,
-    user: AuthUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    background_tasks: BackgroundTasks = None,
-):
-    """下载图书 PDF 到书架并触发解析。"""
-    raw_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{req.pdf_path}?ref={GITHUB_BRANCH}"
-    file_id = uuid.uuid4()
-    stored_filename = f"{file_id}_{req.filename}"
-    storage_dir = settings.storage_url
-    os.makedirs(storage_dir, exist_ok=True)
-    file_path = os.path.join(storage_dir, stored_filename)
-
-    try:
-        async with httpx.AsyncClient(timeout=180, follow_redirects=True) as client:
-            resp = await client.get(raw_url, headers={"Accept": "application/vnd.github.raw"})
-            resp.raise_for_status()
-            with open(file_path, "wb") as f:
-                f.write(resp.content)
-    except Exception as e:
-        raise HTTPException(502, f"下载失败: {str(e)[:120]}")
-
-    paper = Paper(
-        id=file_id,
-        user_id=user.id,
-        filename=req.filename,
-        file_url=get_storage_url(stored_filename),
-        status="pending",
-    )
-    db.add(paper)
-    await db.commit()
-    await db.refresh(paper)
-
-    return {"id": file_id, "filename": req.filename, "status": "pending", "message": "已下载到书架，点「AI阅读」开始解析"}
+async def import_book(req: BookImportRequest):
+    """下载图书 PDF 到书架（从 OSS，未配置时提示）。"""
+    if not OSS_BOOKS_JSON_URL:
+        raise HTTPException(503, "图书市场（OSS）尚未配置")
+    # 未来：从 OSS 下载 req.pdf_url 到 storage，再走杂志拆分流程
+    raise HTTPException(501, "OSS 下载尚未实现")

@@ -11,7 +11,6 @@ class ExtensiveService:
     """泛读训练（新闻短文快速读 + 大意检测），独立于精读语料。"""
 
     def __init__(self):
-        self.articles = self._load_articles()
         data_dir = os.path.dirname(self._data_path())
         self.question_store = GeneratedStore(os.path.join(data_dir, "generated", "questions.json"))
 
@@ -44,11 +43,11 @@ class ExtensiveService:
         return [
             {"id": a["id"], "title": a["title"],
              "word_count": a["word_count"], "source": a["source"]}
-            for a in self.articles
+            for a in self._load_articles()
         ]
 
     def get_article(self, article_id: int) -> Optional[Dict[str, Any]]:
-        for a in self.articles:
+        for a in self._load_articles():
             if a["id"] == article_id:
                 return a
         return None
