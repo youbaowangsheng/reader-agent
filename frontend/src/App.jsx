@@ -81,7 +81,7 @@ function NavBar({ user, activeTab, onTabChange, onLogout }) {
       <div className="nav-left">
         <div className="logo">
           <span className="mark">R</span>
-          Reader <span className="sub">AI 导读</span>
+          Reader <span className="sub">AI 陪你精读每一篇</span>
         </div>
         <div className="nav-tabs">
           <button
@@ -143,7 +143,7 @@ function LoginPage({ onLogin }) {
           <span className="logo">R</span>
           Reader Agent
         </div>
-        <p className="subtitle">外刊精读 · 泛读训练</p>
+        <p className="subtitle">AI 陪你精读每一篇</p>
         <form onSubmit={handleSubmit}>
           <input
             type="email"
