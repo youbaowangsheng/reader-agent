@@ -9,9 +9,16 @@ from typing import Any, Dict, List, Optional
 
 from app.service.llm import LLMService
 
-dateline = re.compile(
-    r'^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},\s+20\d\d\s+\d{1,2}:\d{2}\s+(AM|PM)'
+# Wired 格式 dateline：Jan 02, 2025 10:30 AM（带时间）
+dateline_full = re.compile(
+    r'^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:st|nd|rd|th)?,?\s+20\d\d\s+\d{1,2}:\d{2}\s+(AM|PM)'
 )
+# Economist 格式日期：Jul 23rd 2026（无时间）
+dateline_date = re.compile(
+    r'^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:st|nd|rd|th)?,?\s+20\d\d$'
+)
+# Economist 文章边界：栏目 | 标签（如 "Leaders | In praise of hypocrisy"）
+SECTION_TAG_RE = re.compile(r'^([A-Z][\w\s&\-]+?)\s*\|\s*(.+)$')
 NAV = {'Next', 'Section menu', 'Main menu', 'Previous', 'Menu', 'Skip to', 'Share', 'Play/Pause Button'}
 NOISE_PREFIX = ('ILLUSTRAT', 'PHOTOGRAPH', 'Play/Pause', 'CULTURE', '|')
 SMALL_WORDS = {'the', 'a', 'an', 'of', 'and', 'or', 'to', 'in', 'on', 'for', 'with', 'by', 'at', 'as', 'is', 'are', 'was', 'were', 'be', 'into', 'up', 'out'}
@@ -37,39 +44,95 @@ def clean_line(s):
 
 
 def split_pdf(path) -> List[Dict[str, Any]]:
-    """拆分杂志 PDF（Wired 格式，按 dateline 找文章边界）。"""
+    """拆分杂志 PDF（自动识别 Economist「栏目|标签」或 Wired dateline 格式）。"""
     doc = fitz.open(path)
-    pages = [(i + 1, doc[i].get_text()) for i in range(len(doc))]
-    doc.close()
-
-    global_lines = []
-    for pageno, text in pages:
-        for ln in text.split('\n'):
+    lines = []
+    for i in range(len(doc)):
+        for ln in doc[i].get_text().split('\n'):
             s = ln.strip()
             if s:
-                global_lines.append((pageno, s))
+                lines.append(s)
+    doc.close()
 
-    bounds = [i for i, (p, s) in enumerate(global_lines) if dateline.match(s)]
+    section_bounds = [i for i, s in enumerate(lines) if SECTION_TAG_RE.match(s)]
+    if section_bounds:
+        return _split_by_section(lines, section_bounds)
 
+    dateline_bounds = [i for i, s in enumerate(lines) if dateline_full.match(s)]
+    if dateline_bounds:
+        return _split_by_dateline(lines, dateline_bounds)
+
+    return []
+
+
+def _split_by_section(lines, bounds) -> List[Dict[str, Any]]:
+    """Economist 格式：按「栏目 | 标签」行切分。"""
+    articles = []
+    for bi, idx in enumerate(bounds):
+        end = bounds[bi + 1] if bi + 1 < len(bounds) else len(lines)
+        m = SECTION_TAG_RE.match(lines[idx])
+        section = m.group(1).strip()
+        tail = lines[idx + 1:end]
+
+        # 找日期行，标题在日期前
+        date_idx = None
+        for k, s in enumerate(tail):
+            if dateline_date.match(s):
+                date_idx = k
+                break
+
+        if date_idx is None:
+            # 无日期行：前 3 行作标题，其余为正文
+            head = tail[:3]
+            body_tail = tail[3:]
+        else:
+            head = tail[:date_idx]
+            body_tail = tail[date_idx + 1:]
+        # Economist 标题是句子式（首词大写），不是 Title Case，直接用日期前的行作标题，
+        # 评级时 LLM 的 clean_title 会规范化（去掉副标题）。
+        title = ' '.join(head).strip()[:160]
+
+        body_parts = []
+        for s in body_tail:
+            c = clean_line(s)
+            if c:
+                body_parts.append(c)
+        body = ' '.join(body_parts)
+
+        wc = len(body.split())
+        if 250 <= wc <= 6000 and title:
+            articles.append({
+                'title': title,
+                'author': '',
+                'section': section,
+                'date': '',
+                'word_count': wc,
+                'body': body,
+            })
+    return articles
+
+
+def _split_by_dateline(lines, bounds) -> List[Dict[str, Any]]:
+    """Wired 格式：按 dateline（带时间）切分。"""
     articles = []
     for bi, idx in enumerate(bounds):
         before = []
         j = idx - 1
         while j >= 0 and len(before) < 3:
-            s = global_lines[j][1]
-            if s in NAV or s.startswith('|') or dateline.match(s):
+            s = lines[j]
+            if s in NAV or s.startswith('|') or dateline_full.match(s):
                 break
             before.insert(0, s)
             j -= 1
         author = before[0] if before else ''
         section = before[1] if len(before) >= 2 else ''
 
-        end = bounds[bi + 1] if bi + 1 < len(bounds) else len(global_lines)
-        tail = global_lines[idx + 1:end]
+        end = bounds[bi + 1] if bi + 1 < len(bounds) else len(lines)
+        tail = lines[idx + 1:end]
 
         title_lines = []
         body_start = 0
-        for k, (pno, s) in enumerate(tail):
+        for k, s in enumerate(tail):
             if s in NAV or s.startswith(NOISE_PREFIX):
                 continue
             if is_titlecase_line(s) and len(title_lines) < 6 and k < 12:
@@ -80,7 +143,7 @@ def split_pdf(path) -> List[Dict[str, Any]]:
         title = ' '.join(title_lines).strip()
 
         body_parts = []
-        for (pno, s) in tail[body_start:]:
+        for s in tail[body_start:]:
             c = clean_line(s)
             if c:
                 body_parts.append(c)
@@ -92,7 +155,7 @@ def split_pdf(path) -> List[Dict[str, Any]]:
                 'title': title,
                 'author': author,
                 'section': section,
-                'date': global_lines[idx][1],
+                'date': lines[idx],
                 'word_count': wc,
                 'body': body,
             })
