@@ -18,6 +18,7 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
   const [engagement, setEngagement] = useState({});
   const [pdfState, setPdfState] = useState(null); // {page, highlight}
   const [pdfPanelOpen, setPdfPanelOpen] = useState(false); // 移动端全屏 PDF 开关
+  const [uploading, setUploading] = useState(false);
   const [noteDraft, setNoteDraft] = useState({});
   const [myView, setMyView] = useState('');
   const [regenerating, setRegenerating] = useState(false);
@@ -30,6 +31,26 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
   const toggleWaitlist = (collapsed) => {
     setWaitlistCollapsed(collapsed);
     localStorage.setItem('waitlist_collapsed', collapsed ? '1' : '0');
+  };
+
+  // 上传论文 → 自动解析 → 刷新列表
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const res = await api.uploadPaper(file);
+      _papersCache = null;
+      api.getPapers().then(r => { _papersCache = r.data; setPapers(r.data); }).catch(() => {});
+      if (res.data?.id) {
+        api.parsePaper(res.data.id).catch(() => {});
+      }
+    } catch (err) {
+      alert('上传失败：' + (err.response?.data?.detail || err.message));
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
   };
 
   // 选中论文/导读生成完成后，滚动回顶部（scrollIntoView 比 scrollTop 可靠）
@@ -60,6 +81,17 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
       setPapers(res.data);
     }).catch(() => {}).finally(() => setPapersLoading(false));
   }, [active]);
+
+  // 有解析中的论文时，轮询刷新列表状态
+  useEffect(() => {
+    if (!active) return;
+    const hasProcessing = papers.some(p => p.status === 'pending' || p.status === 'processing' || p.status === 'parsed');
+    if (!hasProcessing) return;
+    const timer = setInterval(() => {
+      api.getPapers().then(r => { _papersCache = r.data; setPapers(r.data); }).catch(() => {});
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [active, papers]);
 
   // 选中论文 → 加载详情 + 导读 + 交互
   useEffect(() => {
@@ -224,27 +256,37 @@ function ReaderPage({ active, openPaperId, onPaperConsumed }) {
           ) : (
             <>
               <div className="guide-waitlist-head">
-                <span>待读列表</span>
+                <span>论文列表</span>
                 <span className="guide-waitlist-head-right">
-                  <span className="count">{readyPapers.length}</span>
+                  <span className="count">{papers.length}</span>
                   <button className="guide-waitlist-collapse" onClick={() => toggleWaitlist(true)} title="收起">«</button>
                 </span>
               </div>
+              <div className="guide-upload">
+                <label className="guide-upload-label">
+                  {uploading ? '上传中…' : '📄 上传论文 PDF'}
+                  <input type="file" accept=".pdf,.epub" onChange={handleUpload} disabled={uploading} style={{ display: 'none' }} />
+                </label>
+              </div>
               {papersLoading ? (
                 <div className="guide-waitlist-empty">加载中…</div>
-              ) : readyPapers.length === 0 ? (
-                <div className="guide-waitlist-empty">
-                  暂无已解析的论文<br />去「书架」点「🤖 AI 阅读」
-                </div>
+              ) : papers.length === 0 ? (
+                <div className="guide-waitlist-empty">还没有论文，点上面上传 PDF</div>
               ) : (
-                readyPapers.map(p => (
+                papers.map(p => (
                   <button
                     key={p.id}
                     className={`guide-waitlist-item ${p.id === selectedId ? 'active' : ''}`}
-                    onClick={() => setSelectedId(p.id)}
+                    onClick={() => p.status === 'ready' && setSelectedId(p.id)}
                     title={p.filename}
+                    disabled={p.status !== 'ready'}
                   >
                     <span className="w-name">{p.filename}</span>
+                    {p.status !== 'ready' && (
+                      <span className="w-status">
+                        {p.status === 'processing' ? '解析中…' : p.status === 'parsed' ? '准备导读…' : p.status === 'error' ? '解析失败' : '待解析'}
+                      </span>
+                    )}
                   </button>
                 ))
               )}

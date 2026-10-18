@@ -6,6 +6,7 @@ import MarketPage from './pages/MarketPage';
 import GuideIndexPage from './pages/GuideIndexPage';
 import IntensivePage from './pages/IntensivePage';
 import ExtensivePage from './pages/ExtensivePage';
+import ReaderPage from './pages/ReaderPage';
 import './App.css';
 
 function App() {
@@ -65,6 +66,7 @@ function App() {
             active={activeTab === 'extensive'}
             openArticle={openArticle?.type === 'extensive' ? openArticle : null}
           />
+          <ReaderPage active={activeTab === 'papers'} />
           <ShelfPage active={activeTab === 'shelf'} onOpenPaper={() => {}} />
           <MarketPage active={activeTab === 'market'} onOpenPaper={() => {}} />
         </div>
@@ -85,23 +87,27 @@ function NavBar({ user, activeTab, onTabChange, onLogout }) {
           <button
             className={`nav-tab ${activeTab === 'guide' ? 'active' : ''}`}
             onClick={() => onTabChange('guide')}
-          >导读</button>
+          >导读目录</button>
           <button
             className={`nav-tab ${activeTab === 'intensive' ? 'active' : ''}`}
             onClick={() => onTabChange('intensive')}
-          >精读</button>
+          >AI精读</button>
           <button
             className={`nav-tab ${activeTab === 'extensive' ? 'active' : ''}`}
             onClick={() => onTabChange('extensive')}
-          >泛读</button>
+          >AI泛读</button>
+          <button
+            className={`nav-tab ${activeTab === 'papers' ? 'active' : ''}`}
+            onClick={() => onTabChange('papers')}
+          >论文导读</button>
           <button
             className={`nav-tab ${activeTab === 'shelf' ? 'active' : ''}`}
             onClick={() => onTabChange('shelf')}
-          >书架</button>
+          >我的书架</button>
           <button
             className={`nav-tab ${activeTab === 'market' ? 'active' : ''}`}
             onClick={() => onTabChange('market')}
-          >市场</button>
+          >图书市场</button>
         </div>
       </div>
       <div className="nav-right">
