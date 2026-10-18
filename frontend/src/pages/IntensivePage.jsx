@@ -96,6 +96,9 @@ function IntensivePage({ active, openArticle }) {
               onClick={() => selectArticle(a.id)}
             >
               <span className="intensive-title">{a.title}</span>
+              {a.created_at && (Date.now() - new Date(a.created_at).getTime()) < 7 * 24 * 3600 * 1000 && (
+                <span className="new-badge">NEW</span>
+              )}
               <span className="intensive-meta">
                 <span className="intensive-level" style={{ background: LEVEL_COLOR[a.level] || '#999' }}>{a.level}</span>
                 <span>{a.topic} · {a.word_count}词</span>

@@ -391,7 +391,7 @@ p:hover .ask-inline{opacity:1}
 }
 
 /* 书架论文列表 */
-.shelf-paper-list{display:flex;flex-direction:column;gap:10px;padding:12px 0}
+.shelf-paper-list{display:flex;flex-direction:column;gap:10px;padding:12px 32px;max-width:1280px}
 .shelf-paper-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:#fff;box-shadow:var(--border);border-radius:10px;cursor:pointer;transition:background .12s}
 .shelf-paper-item:hover{background:var(--bg-hover)}
 .sp-info{min-width:0;flex:1}
@@ -528,7 +528,7 @@ p:hover .ask-inline{opacity:1}
 .guide-index-card-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-4)}
 .guide-index-empty{padding:20px;text-align:center;color:var(--text-4);font-size:13px;background:#fff;border-radius:10px;box-shadow:var(--border)}
 /* 杂志书架 */
-.shelf-hint{font-size:13px;color:var(--text-4);margin:4px 0 16px}
+.shelf-hint{font-size:13px;color:var(--text-4);margin:4px 32px 16px}
 .magazine-block{margin-bottom:12px}
 .magazine-articles{margin:-4px 0 12px;padding:8px 12px;background:#fafafa;border-radius:0 0 10px 10px;border:1px solid var(--border);border-top:none}
 .magazine-article-item{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed var(--border);font-size:13px}
@@ -548,5 +548,6 @@ p:hover .ask-inline{opacity:1}
 .mb-cover-placeholder{font-size:36px;color:var(--text-4)}
 .mb-title{font-size:13px;font-weight:600;color:var(--text);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .mb-meta{font-size:12px;color:var(--text-4)}
+.new-badge{display:inline-block;font-size:10px;font-weight:700;color:#fff;background:#e53935;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle;letter-spacing:.5px}
 .mb-done{font-size:12px;color:#2e7d32;padding:6px 0;font-weight:600}
 

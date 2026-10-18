@@ -288,6 +288,7 @@ class MagazineService:
             "title_clean": r.get("title_clean", ""),
             "fit": "精读",
             "topic": r.get("topic", ""),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         })
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -300,6 +301,7 @@ class MagazineService:
             "body": a["body"],
             "word_count": a.get("word_count", len(a["body"].split())),
             "source": "magazine",
+            "created_at": datetime.now(timezone.utc).isoformat(),
         })
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)

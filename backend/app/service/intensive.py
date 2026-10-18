@@ -37,14 +37,19 @@ class IntensiveService:
                 "topic": a.get("topic", ""),
                 "word_count": a.get("word_count", len(body.split())),
                 "source": a.get("source", ""),
+                "created_at": a.get("created_at", ""),
             })
         return result
 
     def list_articles(self) -> List[Dict[str, Any]]:
+        articles = self._load_articles()
+        # 新入库（杂志评级）排在前面
+        articles.sort(key=lambda a: a.get("created_at", ""), reverse=True)
         return [
             {"id": a["id"], "title": a["title"], "level": a["level"],
-             "topic": a["topic"], "word_count": a["word_count"]}
-            for a in self._load_articles()
+             "topic": a["topic"], "word_count": a["word_count"],
+             "created_at": a.get("created_at", "")}
+            for a in articles
         ]
 
     def get_article(self, article_id: int) -> Optional[Dict[str, Any]]:
