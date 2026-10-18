@@ -66,7 +66,10 @@ function App() {
             active={activeTab === 'extensive'}
             openArticle={openArticle?.type === 'extensive' ? openArticle : null}
           />
-          <ReaderPage active={activeTab === 'papers'} />
+          <ReaderPage
+            active={activeTab === 'papers'}
+            openPaperId={openArticle?.type === 'papers' ? openArticle : null}
+          />
           <ShelfPage active={activeTab === 'shelf'} onOpenPaper={() => {}} />
           <MarketPage active={activeTab === 'market'} onOpenPaper={() => {}} />
         </div>
@@ -87,7 +90,7 @@ function NavBar({ user, activeTab, onTabChange, onLogout }) {
           <button
             className={`nav-tab ${activeTab === 'guide' ? 'active' : ''}`}
             onClick={() => onTabChange('guide')}
-          >导读目录</button>
+          >首页导读</button>
           <button
             className={`nav-tab ${activeTab === 'intensive' ? 'active' : ''}`}
             onClick={() => onTabChange('intensive')}
@@ -99,7 +102,7 @@ function NavBar({ user, activeTab, onTabChange, onLogout }) {
           <button
             className={`nav-tab ${activeTab === 'papers' ? 'active' : ''}`}
             onClick={() => onTabChange('papers')}
-          >论文导读</button>
+          >原文阅读</button>
           <button
             className={`nav-tab ${activeTab === 'shelf' ? 'active' : ''}`}
             onClick={() => onTabChange('shelf')}
