@@ -162,6 +162,31 @@ def _split_by_dateline(lines, bounds) -> List[Dict[str, Any]]:
     return articles
 
 
+def _split_long_body(body: str, max_wc: int = 1500, min_wc: int = 250) -> List[str]:
+    """长文按句子边界切到 min-max 词的段（供精读入库，避免逐段导读超 token 上限）。"""
+    sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z"“\'])', body.strip())
+    chunks = []
+    cur = []
+    cur_wc = 0
+    for s in sentences:
+        wc = len(s.split())
+        if cur and cur_wc + wc > max_wc:
+            chunks.append(' '.join(cur))
+            cur = []
+            cur_wc = 0
+        cur.append(s)
+        cur_wc += wc
+    if cur:
+        chunks.append(' '.join(cur))
+    merged = []
+    for ch in chunks:
+        if merged and len(ch.split()) < min_wc:
+            merged[-1] += ' ' + ch
+        else:
+            merged.append(ch)
+    return merged
+
+
 class MagazineService:
     """杂志/期刊拆分阅读：上传 → 拆分 → 评级 → 入库。"""
 
@@ -251,22 +276,30 @@ class MagazineService:
         llm = LLMService()
         imported = {"intensive": 0, "extensive": 0, "skipped": 0}
         for a in mag["articles"]:
-            try:
-                r = await llm.rate_article(a["title"], a["body"])
-            except Exception as e:
-                r = {"error": str(e)}
-            if not r or "error" in r:
-                imported["skipped"] += 1
-                continue
-            fit = r.get("fit", "")
-            if fit == "精读":
-                self._append_intensive(a, r)
-                imported["intensive"] += 1
-            elif fit == "泛读":
-                self._append_extensive(a, r)
-                imported["extensive"] += 1
-            else:
-                imported["skipped"] += 1
+            body = a.get("body", "")
+            wc = len(body.split())
+            # 长文切分成段，每段单独评级入库（避免精读导读超 token 截断）
+            segments = _split_long_body(body) if wc > 1500 else [body]
+            for si, seg_body in enumerate(segments):
+                seg = {**a, "body": seg_body, "word_count": len(seg_body.split())}
+                if len(segments) > 1:
+                    seg["title"] = a["title"] + f" (Part {si + 1}/{len(segments)})"
+                try:
+                    r = await llm.rate_article(seg["title"], seg["body"])
+                except Exception as e:
+                    r = {"error": str(e)}
+                if not r or "error" in r:
+                    imported["skipped"] += 1
+                    continue
+                fit = r.get("fit", "")
+                if fit == "精读":
+                    self._append_intensive(seg, r)
+                    imported["intensive"] += 1
+                elif fit == "泛读":
+                    self._append_extensive(seg, r)
+                    imported["extensive"] += 1
+                else:
+                    imported["skipped"] += 1
 
         mag["status"] = "done"
         mag["imported"] = imported
