@@ -555,4 +555,17 @@ p:hover .ask-inline{opacity:1}
 .w-status{font-size:11px;color:var(--text-4)}
 .guide-waitlist-item:disabled{opacity:.55;cursor:default}
 .mb-done{font-size:12px;color:#2e7d32;padding:6px 0;font-weight:600}
+/* 论文导读：目录 + PDF 原文 */
+.paper-reader{display:flex;flex:1;min-height:0}
+.paper-left{width:280px;min-width:280px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;background:var(--bg-subtle)}
+.paper-pdf{flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;background:#525659}
+.paper-pdf .guide-status{margin:auto;color:#fff}
+.paper-pdf .guide-pdf-panel{flex:1;display:flex;flex-direction:column;min-height:0}
+.paper-toc{border-top:1px solid var(--border);margin-top:8px;flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.paper-toc-head{font-size:13px;font-weight:600;color:var(--text-2);padding:12px 14px 8px}
+.paper-toc-item{display:flex;justify-content:space-between;gap:8px;padding:8px 14px;font-size:13px;color:var(--text-2);text-align:left;border:none;background:none;cursor:pointer;width:100%}
+.paper-toc-item:hover{background:var(--bg-hover)}
+.paper-toc-heading{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.paper-toc-page{font-size:11px;color:var(--text-4);flex-shrink:0}
+.paper-toc-empty{font-size:12px;color:var(--text-4);padding:8px 14px}
 
