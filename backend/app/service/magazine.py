@@ -276,8 +276,12 @@ class MagazineService:
     def _append_intensive(self, a: Dict[str, Any], r: Dict[str, Any]) -> None:
         path = os.path.join(self.data_dir, "articles_v1.json")
         data = json.load(open(path, encoding="utf-8"))
+        title_clean = r.get("title_clean") or a["title"]
+        # 防御：title_clean 含中文（LLM 误翻译）则回退原文标题
+        if re.search(r'[\u4e00-\u9fff]', title_clean):
+            title_clean = a["title"]
         data.append({
-            "title": r.get("title_clean") or a["title"],
+            "title": title_clean,
             "author": a.get("author", ""),
             "section": a.get("section", ""),
             "date": a.get("date", ""),
@@ -296,8 +300,11 @@ class MagazineService:
     def _append_extensive(self, a: Dict[str, Any], r: Dict[str, Any]) -> None:
         path = os.path.join(self.data_dir, "news_articles.json")
         data = json.load(open(path, encoding="utf-8"))
+        title_clean = r.get("title_clean") or a["title"]
+        if re.search(r'[\u4e00-\u9fff]', title_clean):
+            title_clean = a["title"]
         data.append({
-            "title": r.get("title_clean") or a["title"],
+            "title": title_clean,
             "body": a["body"],
             "word_count": a.get("word_count", len(a["body"].split())),
             "source": "magazine",
