@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api/client';
+import Cover from '../components/Cover';
 
 function ShelfPage({ active }) {
   const [magazines, setMagazines] = useState([]);
@@ -108,6 +109,9 @@ function ShelfPage({ active }) {
           {magazines.map(m => (
             <div key={m.id} className="magazine-block">
               <div className="shelf-paper-item" onClick={() => toggleExpand(m.id)}>
+                <div className="sp-cover">
+                  <Cover title={m.filename?.replace(/\.pdf$/i, '') || m.filename} type="杂志" />
+                </div>
                 <div className="sp-info">
                   <div className="sp-name">{m.filename}</div>
                   <div className="sp-meta">

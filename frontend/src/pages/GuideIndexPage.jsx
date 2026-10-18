@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api/client';
+import Cover from '../components/Cover';
 
 const LEVEL_COLOR = { L1: '#4caf50', L2: '#8bc34a', L3: '#ffb300', L4: '#ff7043', L5: '#e53935' };
 
@@ -56,10 +57,13 @@ function GuideIndexPage({ active, onOpenArticle }) {
           {intensive.length === 0 && <div className="guide-index-empty">还没有精读文章</div>}
           {intensive.map(a => (
             <button key={a.id} className="guide-index-card" onClick={() => onOpenArticle('intensive', a.id)}>
-              <div className="guide-index-card-title">{a.title}</div>
-              <div className="guide-index-card-meta">
-                <span className="intensive-level" style={{ background: LEVEL_COLOR[a.level] || '#999' }}>{a.level}</span>
-                <span>{a.topic} · {a.word_count}词</span>
+              <Cover title={a.title} type="AI精读" subtitle={a.topic || a.level || ''} />
+              <div className="guide-index-card-info">
+                <div className="guide-index-card-title">{a.title}</div>
+                <div className="guide-index-card-meta">
+                  <span className="intensive-level" style={{ background: LEVEL_COLOR[a.level] || '#999' }}>{a.level}</span>
+                  <span>{a.topic} · {a.word_count}词</span>
+                </div>
               </div>
             </button>
           ))}
@@ -69,9 +73,12 @@ function GuideIndexPage({ active, onOpenArticle }) {
           {extensive.length === 0 && <div className="guide-index-empty">还没有泛读文章</div>}
           {extensive.map(a => (
             <button key={a.id} className="guide-index-card" onClick={() => onOpenArticle('extensive', a.id)}>
-              <div className="guide-index-card-title">{a.title}</div>
-              <div className="guide-index-card-meta">
-                <span>{a.word_count}词 · {a.source}</span>
+              <Cover title={a.title} type="AI泛读" subtitle={a.source || ''} />
+              <div className="guide-index-card-info">
+                <div className="guide-index-card-title">{a.title}</div>
+                <div className="guide-index-card-meta">
+                  <span>{a.word_count}词 · {a.source}</span>
+                </div>
               </div>
             </button>
           ))}
@@ -81,9 +88,12 @@ function GuideIndexPage({ active, onOpenArticle }) {
           {readyPapers.length === 0 && <div className="guide-index-empty">还没有可阅读的原文</div>}
           {readyPapers.map(p => (
             <button key={p.id} className="guide-index-card" onClick={() => onOpenArticle('papers', p.id)}>
-              <div className="guide-index-card-title">{p.filename}</div>
-              <div className="guide-index-card-meta">
-                <span>📄 原文阅读</span>
+              <Cover title={p.filename?.replace(/\.pdf$/i, '') || p.filename} type="原文阅读" />
+              <div className="guide-index-card-info">
+                <div className="guide-index-card-title">{p.filename}</div>
+                <div className="guide-index-card-meta">
+                  <span>📄 原文阅读</span>
+                </div>
               </div>
             </button>
           ))}

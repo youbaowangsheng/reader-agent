@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api/client';
+import Cover from '../components/Cover';
 
 function MarketPage({ active }) {
   const [data, setData] = useState({ total: 0, categories: [] });
@@ -68,13 +69,13 @@ function MarketPage({ active }) {
             <div className="market-book-grid">
               {cat.books.map(book => (
                 <div key={book.pdf_path} className="market-book-card">
-                  <div className="mb-cover">
-                    {book.cover_url ? (
+                  {book.cover_url ? (
+                    <div className="mb-cover">
                       <img src={book.cover_url} alt={book.filename} loading="lazy" />
-                    ) : (
-                      <span className="mb-cover-placeholder">📖</span>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <Cover title={book.title || book.filename?.replace(/\.pdf$/i, '')} type="图书" subtitle={book.issue || ''} />
+                  )}
                   <div className="mb-title">{book.title || book.filename?.replace(/\.pdf$/i, '')}</div>
                   <div className="mb-meta">{book.issue || ''}</div>
                   {imported[book.filename] != null ? (

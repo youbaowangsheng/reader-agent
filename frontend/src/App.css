@@ -393,6 +393,7 @@ p:hover .ask-inline{opacity:1}
 /* 书架论文列表 */
 .shelf-paper-list{display:flex;flex-direction:column;gap:10px;padding:12px 32px;max-width:1280px}
 .shelf-paper-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:#fff;box-shadow:var(--border);border-radius:10px;cursor:pointer;transition:background .12s}
+.sp-cover{width:46px;flex-shrink:0}
 .shelf-paper-item:hover{background:var(--bg-hover)}
 .sp-info{min-width:0;flex:1}
 .sp-name{font-size:14px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -521,10 +522,11 @@ p:hover .ask-inline{opacity:1}
 .guide-index-section{margin-bottom:28px}
 .guide-index-section h3{font-size:16px;font-weight:700;color:var(--text);margin:0 0 12px}
 .guide-index-count{font-size:12px;color:var(--text-4);font-weight:400;margin-left:6px}
-.guide-index-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
-.guide-index-card{display:flex;flex-direction:column;gap:8px;text-align:left;padding:14px 16px;border:none;border-radius:10px;background:#fff;box-shadow:var(--border);cursor:pointer;transition:box-shadow .15s}
+.guide-index-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
+.guide-index-card{display:flex;flex-direction:column;gap:8px;text-align:left;padding:10px;border:none;border-radius:12px;background:#fff;box-shadow:var(--border);cursor:pointer;transition:box-shadow .15s}
 .guide-index-card:hover{box-shadow:0 0 0 2px var(--accent)}
-.guide-index-card-title{font-size:13.5px;font-weight:600;color:var(--text);line-height:1.4}
+.guide-index-card-info{display:flex;flex-direction:column;gap:4px;padding:2px 4px 4px}
+.guide-index-card-title{font-size:13px;font-weight:600;color:var(--text);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .guide-index-card-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-4)}
 .guide-index-empty{padding:20px;text-align:center;color:var(--text-4);font-size:13px;background:#fff;border-radius:10px;box-shadow:var(--border)}
 /* 杂志书架 */
@@ -581,4 +583,18 @@ p:hover .ask-inline{opacity:1}
 .pdf-pages{display:flex;flex-direction:column;align-items:center;gap:14px;padding:16px 0}
 .pdf-pages-single{height:100%;justify-content:center}
 .pdf-page-slot{width:100%;display:flex;justify-content:center;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+/* 侧栏收缩 */
+.side-toggle{border:none;background:none;cursor:pointer;font-size:16px;line-height:1;color:var(--text-4);padding:4px 8px;border-radius:6px;margin-left:auto}
+.side-toggle:hover{background:var(--bg-hover);color:var(--text)}
+.intensive-list.collapsed{width:46px;min-width:46px}
+.intensive-list.collapsed .intensive-list-head{justify-content:center}
+.intensive-list.collapsed .side-toggle{margin-left:0}
+.paper-toc.collapsed{width:40px;min-width:40px}
+.paper-toc.collapsed .paper-toc-head{writing-mode:vertical-rl;letter-spacing:2px;text-align:center}
+/* 封面卡片 */
+.cover{position:relative;width:100%;aspect-ratio:3/4;border-radius:8px;display:flex;flex-direction:column;justify-content:space-between;padding:12px;color:#fff;overflow:hidden;text-align:left}
+.cover::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,.42));pointer-events:none}
+.cover-type{font-size:10px;letter-spacing:2px;text-transform:uppercase;opacity:.9;font-weight:600;position:relative;z-index:1}
+.cover-title{font-size:15px;font-weight:700;line-height:1.35;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;text-shadow:0 1px 3px rgba(0,0,0,.35);position:relative;z-index:1}
+.cover-sub{font-size:10px;opacity:.85;position:relative;z-index:1}
 

@@ -13,6 +13,8 @@ function ReaderPage({ active, openPaperId }) {
   const [paperDetail, setPaperDetail] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [listCollapsed, setListCollapsed] = useState(false);
+  const [tocCollapsed, setTocCollapsed] = useState(false);
 
   // 加载原文列表
   useEffect(() => {
@@ -87,11 +89,20 @@ function ReaderPage({ active, openPaperId }) {
   return (
     <div className="intensive-page paper-page">
       {/* 左：原文列表 */}
-      <aside className="intensive-list paper-list">
+      <aside className={`intensive-list paper-list ${listCollapsed ? 'collapsed' : ''}`}>
         <div className="intensive-list-head">
-          <span>原文列表</span>
-          <span className="intensive-count">{papers.length} 篇</span>
+          {listCollapsed ? (
+            <button className="side-toggle" onClick={() => setListCollapsed(false)} title="展开列表">»</button>
+          ) : (
+            <>
+              <span>原文列表</span>
+              <span className="intensive-count">{papers.length} 篇</span>
+              <button className="side-toggle" onClick={() => setListCollapsed(true)} title="收起列表">«</button>
+            </>
+          )}
         </div>
+        {!listCollapsed && (
+          <>
         <div className="paper-upload">
           <label className="paper-upload-label">
             {uploading ? '上传中…' : '📄 上传 PDF'}
@@ -118,6 +129,8 @@ function ReaderPage({ active, openPaperId }) {
             </button>
           ))
         )}
+          </>
+        )}
       </aside>
 
       {/* 右：目录 + PDF 原文 */}
@@ -128,9 +141,18 @@ function ReaderPage({ active, openPaperId }) {
           <div className="intensive-placeholder">加载中…</div>
         ) : (
           <div className="paper-body">
-            <div className="paper-toc">
-              <div className="paper-toc-head">目录{sections.length > 0 ? ` · ${sections.length} 节` : ''}</div>
-              {sections.length === 0 ? (
+            <div className={`paper-toc ${tocCollapsed ? 'collapsed' : ''}`}>
+              <div className="paper-toc-head">
+                {tocCollapsed ? (
+                  <button className="side-toggle" onClick={() => setTocCollapsed(false)} title="展开目录">»</button>
+                ) : (
+                  <>
+                    <span>目录{sections.length > 0 ? ` · ${sections.length} 节` : ''}</span>
+                    <button className="side-toggle" onClick={() => setTocCollapsed(true)} title="收起目录">«</button>
+                  </>
+                )}
+              </div>
+              {!tocCollapsed && (sections.length === 0 ? (
                 <div className="paper-toc-empty">这篇原文暂未识别出目录</div>
               ) : (
                 sections.map((s, i) => (
@@ -139,7 +161,7 @@ function ReaderPage({ active, openPaperId }) {
                     {s.page_range && <span className="paper-toc-page">{s.page_range}</span>}
                   </button>
                 ))
-              )}
+              ))}
             </div>
             <div className="paper-pdf">
               <Suspense fallback={<div className="intensive-placeholder">PDF 加载中…</div>}>

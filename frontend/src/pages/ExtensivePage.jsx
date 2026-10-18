@@ -10,6 +10,7 @@ function ExtensivePage({ active, openArticle }) {
   const [score, setScore] = useState(null);
   const [scoring, setScoring] = useState(false);
   const currentIdRef = useRef(null);
+  const [listCollapsed, setListCollapsed] = useState(false);
 
   useEffect(() => {
     if (active && articles.length === 0) {
@@ -64,12 +65,19 @@ function ExtensivePage({ active, openArticle }) {
 
   return (
     <div className="intensive-page">
-      <div className={`intensive-list ${selected ? 'has-selection' : ''}`}>
+      <div className={`intensive-list ${selected ? 'has-selection' : ''} ${listCollapsed ? 'collapsed' : ''}`}>
         <div className="intensive-list-head">
-          <span>新闻泛读</span>
-          <span className="intensive-count">{articles.length} 篇</span>
+          {listCollapsed ? (
+            <button className="side-toggle" onClick={() => setListCollapsed(false)} title="展开列表">»</button>
+          ) : (
+            <>
+              <span>新闻泛读</span>
+              <span className="intensive-count">{articles.length} 篇</span>
+              <button className="side-toggle" onClick={() => setListCollapsed(true)} title="收起列表">«</button>
+            </>
+          )}
         </div>
-        {articles.map(a => (
+        {!listCollapsed && articles.map(a => (
           <button
             key={a.id}
             className={`intensive-item ${selected?.id === a.id ? 'active' : ''}`}

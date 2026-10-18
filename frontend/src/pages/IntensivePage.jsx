@@ -14,6 +14,7 @@ function IntensivePage({ active, openArticle }) {
   const [guideCache, setGuideCache] = useState({});
   const [generatingIds, setGeneratingIds] = useState({});
   const currentIdRef = useRef(null);
+  const [listCollapsed, setListCollapsed] = useState(false);
 
   useEffect(() => {
     if (active && articles.length === 0) {
@@ -81,12 +82,19 @@ function IntensivePage({ active, openArticle }) {
   return (
     <div className="intensive-page">
       {/* 左：文章列表 */}
-      <aside className={`intensive-list ${selected ? 'has-selection' : ''}`}>
+      <aside className={`intensive-list ${selected ? 'has-selection' : ''} ${listCollapsed ? 'collapsed' : ''}`}>
         <div className="intensive-list-head">
-          <span>外刊精读</span>
-          <span className="intensive-count">{articles.length} 篇</span>
+          {listCollapsed ? (
+            <button className="side-toggle" onClick={() => setListCollapsed(false)} title="展开列表">»</button>
+          ) : (
+            <>
+              <span>外刊精读</span>
+              <span className="intensive-count">{articles.length} 篇</span>
+              <button className="side-toggle" onClick={() => setListCollapsed(true)} title="收起列表">«</button>
+            </>
+          )}
         </div>
-        {articles.length === 0 ? (
+        {!listCollapsed && (articles.length === 0 ? (
           <div className="intensive-empty">加载中…</div>
         ) : (
           articles.map(a => (
@@ -105,7 +113,7 @@ function IntensivePage({ active, openArticle }) {
               </span>
             </button>
           ))
-        )}
+        ))}
       </aside>
 
       {/* 右：内容 */}
