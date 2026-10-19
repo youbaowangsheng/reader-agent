@@ -40,7 +40,7 @@ function GuidePdfPanel({ fileUrl, page, onClose }) {
         let doc;
         if (_pdfCache && _pdfCacheUrl === fileUrl) doc = _pdfCache;
         else {
-          doc = await pdfjsLib.getDocument({ url: fileUrl, disableAutoFetch: true, rangeChunkSize: 65536 }).promise;
+          doc = await pdfjsLib.getDocument({ url: fileUrl, disableAutoFetch: true, disableStream: true, rangeChunkSize: 65536 }).promise;
           _pdfCache = doc;
           _pdfCacheUrl = fileUrl;
         }
