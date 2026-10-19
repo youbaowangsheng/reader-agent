@@ -168,8 +168,11 @@ async def _fetch_books():
 
 
 @router.get("/books")
-async def list_books(user: AuthUser = Depends(get_current_user)):
-    """列出 GitHub 仓库里的图书，按杂志分类分组。"""
+async def list_books(user: AuthUser = Depends(get_current_user), refresh: int = 0):
+    """列出 GitHub 仓库里的图书，按杂志分类分组。refresh=1 时强制重新从 GitHub 拉取。"""
+    if refresh:
+        _books_cache["data"] = None
+        _books_cache["ts"] = 0
     try:
         books = await _fetch_books()
     except Exception as e:

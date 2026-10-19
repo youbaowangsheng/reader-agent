@@ -8,6 +8,8 @@ function ShelfPage({ active }) {
   const [expanded, setExpanded] = useState(null);
   const [detail, setDetail] = useState(null);
   const [importing, setImporting] = useState({});
+  const [toPaper, setToPaper] = useState({});
+  const [toPapering, setToPapering] = useState({});
   const fileInputRef = useRef(null);
 
   const loadMagazines = () => {
@@ -55,6 +57,18 @@ function ShelfPage({ active }) {
     }
   };
 
+  const handleToPaper = async (id) => {
+    setToPapering(p => ({ ...p, [id]: true }));
+    try {
+      await api.magazineToPaper(id);
+      setToPaper(p => ({ ...p, [id]: true }));
+    } catch (err) {
+      alert('加入原文阅读失败：' + (err.response?.data?.detail || err.message));
+    } finally {
+      setToPapering(p => ({ ...p, [id]: false }));
+    }
+  };
+
   const pollStatus = (id) => {
     const timer = setInterval(() => {
       api.getMagazine(id).then(r => {
@@ -87,12 +101,12 @@ function ShelfPage({ active }) {
       <div className="shelf-header">
         <h2>书架</h2>
         <button className="btn-primary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-          {uploading ? '上传中…' : '📄 上传杂志 PDF'}
+          {uploading ? '上传中…' : '📄 上传原文'}
         </button>
         <input
           ref={fileInputRef}
           type="file"
-          accept="application/pdf,.pdf"
+          accept="application/pdf,.pdf,.epub,application/epub+zip"
           onChange={handleUpload}
           style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, overflow: 'hidden' }}
         />
@@ -124,13 +138,22 @@ function ShelfPage({ active }) {
                     )}
                   </div>
                 </div>
-                <button
-                  className="btn-add"
-                  disabled={importing[m.id] || m.status === 'empty'}
-                  onClick={(e) => { e.stopPropagation(); handleImport(m.id); }}
-                >
-                  {importing[m.id] ? '导入中…' : m.status === 'done' ? '重新入库' : '🤖 评级入库'}
-                </button>
+                <div className="sp-actions">
+                  <button
+                    className="btn-add"
+                    disabled={importing[m.id] || m.status === 'empty'}
+                    onClick={(e) => { e.stopPropagation(); handleImport(m.id); }}
+                  >
+                    {importing[m.id] ? '导入中…' : m.status === 'done' ? '重新入库' : '🤖 评级入库'}
+                  </button>
+                  <button
+                    className="btn-ghost"
+                    disabled={toPapering[m.id] || !!toPaper[m.id]}
+                    onClick={(e) => { e.stopPropagation(); handleToPaper(m.id); }}
+                  >
+                    {toPaper[m.id] ? '✓ 已加入原文' : '加入原文阅读'}
+                  </button>
+                </div>
               </div>
 
               {expanded === m.id && detail && (

@@ -122,6 +122,7 @@ function IntensivePage({ active, openArticle }) {
           <div className="intensive-placeholder">← 选一篇外刊开始精读</div>
         ) : (
           <>
+            <button className="mobile-back" onClick={() => setSelected(null)}>← 返回列表</button>
             <div className="intensive-article-head">
               <h2>{selected.title}</h2>
               <div className="intensive-meta">

@@ -211,9 +211,11 @@ class MagazineService:
             json.dump(self._load(), f, ensure_ascii=False, indent=2)
 
     def save_upload(self, filename: str, content: bytes) -> Dict[str, Any]:
-        """保存上传的 PDF 并拆分，返回杂志记录（含拆出的文章列表）。"""
+        """保存上传的 PDF/EPUB 并拆分，返回杂志记录（含拆出的文章列表）。"""
         mid = uuid.uuid4().hex[:12]
-        pdf_path = os.path.join(self.storage_dir, f"{mid}.pdf")
+        suffix = os.path.splitext(filename)[1].lower() or ".pdf"
+        stored_name = f"{mid}{suffix}"
+        pdf_path = os.path.join(self.storage_dir, stored_name)
         with open(pdf_path, "wb") as f:
             f.write(content)
 
@@ -225,6 +227,7 @@ class MagazineService:
         mag = {
             "id": mid,
             "filename": filename,
+            "file_path": stored_name,
             "status": "split" if articles else "empty",
             "article_count": len(articles),
             "articles": articles,

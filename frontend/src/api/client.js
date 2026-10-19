@@ -80,7 +80,7 @@ api.addSessionMemory = (paperId, sessionId, turn) => api.post(`/papers/${paperId
 api.clearSessionMemory = (paperId, sessionId) => api.delete(`/papers/${paperId}/sessions/${sessionId}/memory`);
 
 // Market (GitHub 图书)
-api.getMarketBooks = () => api.get('/market/books');
+api.getMarketBooks = (refresh = false) => api.get('/market/books', { params: refresh ? { refresh: 1 } : {} });
 api.importBook = (pdfPath, filename) => api.post('/market/import', { pdf_path: pdfPath, filename });
 
 // Intensive Reading (精读训练)
@@ -112,5 +112,6 @@ api.uploadMagazine = async (file, onProgress) => {
   });
 };
 api.importMagazine = (id) => api.post(`/magazine/${id}/import`);
+api.magazineToPaper = (id) => api.post(`/magazine/${id}/to-paper`);
 
 export { api };

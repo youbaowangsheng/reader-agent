@@ -101,6 +101,7 @@ a{color:var(--accent);text-decoration:none}
 
 /* ===== 市场页 ===== */
 .market-hero{display:flex;align-items:center;gap:24px;padding:28px 32px;border-bottom:1px solid var(--border-strong)}
+.market-hero .market-refresh{margin-left:auto}
 .market-hero h3{font-size:18px;font-weight:600;letter-spacing:-0.2px;margin-bottom:4px}
 .market-hero p{font-size:13px;color:var(--text-4)}
 .big-input{flex:1;height:40px;padding:0 14px;border:none;outline:none;background:var(--bg-subtle);border-radius:8px;box-shadow:var(--border);font-size:14px;color:var(--text)}
@@ -396,6 +397,7 @@ p:hover .ask-inline{opacity:1}
 .shelf-paper-list{display:flex;flex-direction:column;gap:10px;padding:12px 32px;max-width:1280px}
 .shelf-paper-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:#fff;box-shadow:var(--border);border-radius:10px;cursor:pointer;transition:background .12s}
 .sp-cover{width:46px;flex-shrink:0}
+.sp-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .shelf-paper-item:hover{background:var(--bg-hover)}
 .sp-info{min-width:0;flex:1}
 .sp-name{font-size:14px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -511,10 +513,13 @@ p:hover .ask-inline{opacity:1}
 .intensive-ext-feedback{font-size:13px;color:var(--text-2);line-height:1.6}
 .intensive-ext-result{padding:12px 0;border-bottom:1px solid var(--border)}
 .intensive-para-text{font-size:15px;line-height:1.9;color:var(--text);background:#f8fafc;border-left:3px solid var(--accent);padding:12px 14px;border-radius:8px;margin:8px 0;white-space:pre-wrap}
+.mobile-back{display:none;align-items:center;gap:6px;background:var(--bg-hover);border:none;border-radius:6px;padding:6px 12px;font-size:13px;color:var(--text-2);cursor:pointer;margin-bottom:12px}
+.mobile-back:hover{color:var(--text)}
 @media (max-width: 900px) {
   .intensive-list{width:100%;border-right:none}
   .intensive-list.has-selection{display:none}
   .intensive-main.has-selection{display:block;padding:16px}
+  .mobile-back{display:inline-flex}
 }
 /* 导读目录页 */
 .guide-index{flex:1;overflow-y:auto;padding:24px;background:var(--bg-subtle)}

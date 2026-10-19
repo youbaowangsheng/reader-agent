@@ -13,11 +13,11 @@ function MarketPage({ active }) {
     if (active) loadBooks();
   }, [active]);
 
-  const loadBooks = async () => {
+  const loadBooks = async (refresh = false) => {
     setLoading(true);
     setError('');
     try {
-      const res = await api.getMarketBooks();
+      const res = await api.getMarketBooks(refresh);
       setData(res.data || { total: 0, categories: [] });
     } catch (err) {
       setError('加载失败：' + (err.response?.data?.detail || err.message));
@@ -48,6 +48,9 @@ function MarketPage({ active }) {
       <div className="market-hero">
         <h3>图书市场</h3>
         <p>共 {total} 期 · 下载后自动拆分进书架，点「评级入库」进精读/泛读</p>
+        <button className="btn-ghost market-refresh" onClick={() => loadBooks(true)} disabled={loading}>
+          {loading ? '刷新中…' : '🔄 刷新'}
+        </button>
       </div>
 
       {loading ? (
