@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../api/client';
 
 function ExtensivePage({ active, openArticle }) {
@@ -12,12 +12,34 @@ function ExtensivePage({ active, openArticle }) {
   const currentIdRef = useRef(null);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [readMap, setReadMap] = useState({});
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const listRef = useRef(null);
+
+  const loadArticles = useCallback((offset, append) => {
+    api.getExtensiveArticles({ limit: 20, offset }).then(r => {
+      const data = r.data || [];
+      if (append) setArticles(prev => [...prev, ...data]);
+      else setArticles(data);
+      setHasMore(data.length === 20);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (active && articles.length === 0) {
-      api.getExtensiveArticles().then(r => setArticles(r.data)).catch(() => {});
+      loadArticles(0, false);
     }
-  }, [active]);
+  }, [active, loadArticles]);
+
+  const onScroll = () => {
+    const el = listRef.current;
+    if (!el || !hasMore || loadingMore) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 120) {
+      setLoadingMore(true);
+      loadArticles(articles.length, true);
+      setTimeout(() => setLoadingMore(false), 300);
+    }
+  };
 
   // 加载已读记录（用于"标记读完"状态）
   useEffect(() => {
@@ -84,7 +106,7 @@ function ExtensivePage({ active, openArticle }) {
 
   return (
     <div className="intensive-page">
-      <div className={`intensive-list ${selected ? 'has-selection' : ''} ${listCollapsed ? 'collapsed' : ''}`}>
+      <div ref={listRef} onScroll={onScroll} className={`intensive-list ${selected ? 'has-selection' : ''} ${listCollapsed ? 'collapsed' : ''}`}>
         <div className="intensive-list-head">
           {listCollapsed ? (
             <button className="side-toggle" onClick={() => setListCollapsed(false)} title="展开列表">»</button>
@@ -109,6 +131,9 @@ function ExtensivePage({ active, openArticle }) {
             <span className="intensive-meta"><span>{a.word_count}词</span><span>{a.source}</span></span>
           </button>
         ))}
+        {!listCollapsed && articles.length > 0 && (
+          <div className="list-more">{loadingMore ? '加载中…' : hasMore ? '向下滚动加载更多' : '已全部加载'}</div>
+        )}
       </div>
 
       <main className={`intensive-main ${selected ? 'has-selection' : ''}`}>

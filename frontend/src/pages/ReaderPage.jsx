@@ -1,10 +1,7 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { api } from '../api/client';
 
 const GuidePdfPanel = lazy(() => import('../components/GuidePdfPanel'));
-
-// 原文列表模块级缓存（切换 tab 秒出）
-let _papersCache = null;
 
 // 最近 7 天加入的原文视为"新"，列表标 NEW 角标
 const isNewPaper = (createdAt) => {
@@ -22,21 +19,38 @@ function ReaderPage({ active, openPaperId }) {
   const [listCollapsed, setListCollapsed] = useState(false);
   const [tocCollapsed, setTocCollapsed] = useState(false);
   const [readMap, setReadMap] = useState({});
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const listRef = useRef(null);
 
-  // 加载原文列表
+  const loadPapers = useCallback((offset, append) => {
+    api.getPapers({ limit: 20, offset }).then(res => {
+      const data = res.data || [];
+      if (append) setPapers(prev => [...prev, ...data]);
+      else setPapers(data);
+      setHasMore(data.length === 20);
+    }).catch(() => {}).finally(() => setPapersLoading(false));
+  }, []);
+
+  // 加载原文列表（第一页）
   useEffect(() => {
     if (!active) return;
-    if (_papersCache) {
-      setPapers(_papersCache);
-      setPapersLoading(false);
-      return;
+    if (papers.length === 0) {
+      setPapersLoading(true);
+      loadPapers(0, false);
     }
-    setPapersLoading(true);
-    api.getPapers().then(res => {
-      _papersCache = res.data;
-      setPapers(res.data);
-    }).catch(() => {}).finally(() => setPapersLoading(false));
-  }, [active]);
+  }, [active, loadPapers]);
+
+  // 列表滚动到底部加载下一页
+  const onScroll = () => {
+    const el = listRef.current;
+    if (!el || !hasMore || loadingMore) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 120) {
+      setLoadingMore(true);
+      loadPapers(papers.length, true);
+      setTimeout(() => setLoadingMore(false), 300);
+    }
+  };
 
   // 加载已读记录（用于"标记读完"状态）
   useEffect(() => {
@@ -63,10 +77,10 @@ function ReaderPage({ active, openPaperId }) {
     const hasProcessing = papers.some(p => p.status === 'pending' || p.status === 'processing' || p.status === 'parsed');
     if (!hasProcessing) return;
     const timer = setInterval(() => {
-      api.getPapers().then(r => { _papersCache = r.data; setPapers(r.data); }).catch(() => {});
+      loadPapers(0, false);
     }, 4000);
     return () => clearInterval(timer);
-  }, [active, papers]);
+  }, [active, papers, loadPapers]);
 
   // 选中原文 → 加载详情（含目录 parsed_structure.sections）
   useEffect(() => {
@@ -83,8 +97,7 @@ function ReaderPage({ active, openPaperId }) {
     setUploading(true);
     try {
       const res = await api.uploadPaper(file);
-      _papersCache = null;
-      api.getPapers().then(r => { _papersCache = r.data; setPapers(r.data); }).catch(() => {});
+      loadPapers(0, false);
       if (res.data?.id) api.parsePaper(res.data.id).catch(() => {});
     } catch (err) {
       alert('上传失败：' + (err.response?.data?.detail || err.message));
@@ -114,7 +127,7 @@ function ReaderPage({ active, openPaperId }) {
   return (
     <div className="intensive-page paper-page">
       {/* 左：原文列表 */}
-      <aside className={`intensive-list paper-list ${listCollapsed ? 'collapsed' : ''}`}>
+      <aside ref={listRef} onScroll={onScroll} className={`intensive-list paper-list ${listCollapsed ? 'collapsed' : ''}`}>
         <div className="intensive-list-head">
           {listCollapsed ? (
             <button className="side-toggle" onClick={() => setListCollapsed(false)} title="展开列表">»</button>
@@ -157,6 +170,9 @@ function ReaderPage({ active, openPaperId }) {
             </button>
           ))
         )}
+          {papers.length > 0 && (
+            <div className="list-more">{loadingMore ? '加载中…' : hasMore ? '向下滚动加载更多' : '已全部加载'}</div>
+          )}
           </>
         )}
       </aside>

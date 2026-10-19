@@ -79,7 +79,7 @@ async def upload_paper(
 async def list_papers(
     user: AuthUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    limit: int = 50,
+    limit: int = 20,
     offset: int = 0,
 ):
     """List user's papers."""

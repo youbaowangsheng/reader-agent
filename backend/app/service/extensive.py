@@ -40,7 +40,7 @@ class ExtensiveService:
             })
         return result
 
-    def list_articles(self) -> List[Dict[str, Any]]:
+    def list_articles(self, limit: int = 20, offset: int = 0) -> List[Dict[str, Any]]:
         articles = self._load_articles()
         # 新入库（杂志评级）排在前面
         articles.sort(key=lambda a: a.get("created_at", ""), reverse=True)
@@ -48,7 +48,7 @@ class ExtensiveService:
             {"id": a["id"], "title": a["title"],
              "word_count": a["word_count"], "source": a["source"],
              "created_at": a.get("created_at", "")}
-            for a in articles
+            for a in articles[offset:offset + limit]
         ]
 
     def get_article(self, article_id: int) -> Optional[Dict[str, Any]]:

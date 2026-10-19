@@ -516,6 +516,7 @@ p:hover .ask-inline{opacity:1}
 .mobile-back{display:none;align-items:center;gap:6px;background:var(--bg-hover);border:none;border-radius:6px;padding:6px 12px;font-size:13px;color:var(--text-2);cursor:pointer;margin-bottom:12px}
 .mobile-back:hover{color:var(--text)}
 .new-badge{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:4px;background:#ff4d4f;color:#fff;font-size:10px;font-weight:700;line-height:1.5;vertical-align:middle}
+.list-more{padding:12px 16px;text-align:center;font-size:12px;color:var(--text-3)}
 .mark-read-btn{display:inline-flex;align-items:center;gap:4px;background:#fff;box-shadow:var(--border);color:var(--text-2);border:none;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;transition:background .12s;margin-top:10px}
 .mark-read-btn:hover{background:var(--bg-hover)}
 .mark-read-btn.done{background:#f0fdf4;color:#15803d;box-shadow:0 0 0 1px #bbf7d0}

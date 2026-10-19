@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
 import Cover from '../components/Cover';
 
@@ -12,26 +12,68 @@ function GuideIndexPage({ active, onOpenArticle }) {
   const [loading, setLoading] = useState(false);
   const [level, setLevel] = useState(3);
   const [stats, setStats] = useState({ topics: {}, days_since: null });
+  const [intensiveMore, setIntensiveMore] = useState(true);
+  const [extensiveMore, setExtensiveMore] = useState(true);
+  const [papersMore, setPapersMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     if (active) {
       setLoading(true);
       Promise.all([
-        api.getIntensiveArticles(),
-        api.getExtensiveArticles(),
-        api.getPapers(),
+        api.getIntensiveArticles({ limit: 20, offset: 0 }),
+        api.getExtensiveArticles({ limit: 20, offset: 0 }),
+        api.getPapers({ limit: 20, offset: 0 }),
         api.getLevel(),
         api.getStats(),
       ]).then(([ir, er, pr, lr, sr]) => {
         setIntensive(ir.data || []);
         setExtensive(er.data || []);
         setPapers(pr.data || []);
+        setIntensiveMore((ir.data || []).length === 20);
+        setExtensiveMore((er.data || []).length === 20);
+        setPapersMore((pr.data || []).length === 20);
         setLevel(lr.data?.level || 3);
         setStats(sr.data || { topics: {}, days_since: null });
         setLoading(false);
       }).catch(() => setLoading(false));
     }
   }, [active]);
+
+  // 滚动到底部加载当前 tab 的下一页
+  const loadMore = useCallback(() => {
+    if (loadingMore) return;
+    if (tab === 'intensive' && intensiveMore) {
+      setLoadingMore(true);
+      api.getIntensiveArticles({ limit: 20, offset: intensive.length }).then(r => {
+        setIntensive(prev => [...prev, ...(r.data || [])]);
+        setIntensiveMore((r.data || []).length === 20);
+      }).catch(() => {}).finally(() => setLoadingMore(false));
+    } else if (tab === 'extensive' && extensiveMore) {
+      setLoadingMore(true);
+      api.getExtensiveArticles({ limit: 20, offset: extensive.length }).then(r => {
+        setExtensive(prev => [...prev, ...(r.data || [])]);
+        setExtensiveMore((r.data || []).length === 20);
+      }).catch(() => {}).finally(() => setLoadingMore(false));
+    } else if (tab === 'papers' && papersMore) {
+      setLoadingMore(true);
+      api.getPapers({ limit: 20, offset: papers.length }).then(r => {
+        setPapers(prev => [...prev, ...(r.data || [])]);
+        setPapersMore((r.data || []).length === 20);
+      }).catch(() => {}).finally(() => setLoadingMore(false));
+    }
+  }, [tab, intensive.length, extensive.length, papers.length, intensiveMore, extensiveMore, papersMore, loadingMore]);
+
+  useEffect(() => {
+    if (!active) return;
+    const onScroll = () => {
+      if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 200) {
+        loadMore();
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [active, loadMore]);
 
   if (!active) return null;
 
@@ -112,6 +154,9 @@ function GuideIndexPage({ active, onOpenArticle }) {
               </div>
             </button>
           ))}
+          {intensive.length > 0 && (
+            <div className="list-more" style={{ gridColumn: '1 / -1' }}>{loadingMore ? '加载中…' : intensiveMore ? '向下滚动加载更多' : '已全部加载'}</div>
+          )}
         </div>
       ) : tab === 'extensive' ? (
         <div className="guide-index-grid">
@@ -127,6 +172,9 @@ function GuideIndexPage({ active, onOpenArticle }) {
               </div>
             </button>
           ))}
+          {extensive.length > 0 && (
+            <div className="list-more" style={{ gridColumn: '1 / -1' }}>{loadingMore ? '加载中…' : extensiveMore ? '向下滚动加载更多' : '已全部加载'}</div>
+          )}
         </div>
       ) : (
         <div className="guide-index-grid">
@@ -142,6 +190,9 @@ function GuideIndexPage({ active, onOpenArticle }) {
               </div>
             </button>
           ))}
+          {readyPapers.length > 0 && (
+            <div className="list-more" style={{ gridColumn: '1 / -1' }}>{loadingMore ? '加载中…' : papersMore ? '向下滚动加载更多' : '已全部加载'}</div>
+          )}
         </div>
       )}
     </div>

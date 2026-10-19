@@ -32,7 +32,7 @@ api.login = (email, password) => api.post('/auth/login', { email, password });
 api.getMe = () => api.get('/auth/me');
 
 // Papers
-api.getPapers = () => api.get('/papers');
+api.getPapers = (params) => api.get('/papers', { params });
 api.getPaper = (id) => api.get(`/papers/${id}`);
 api.markRead = (id) => api.post(`/papers/${id}/read`);
 api.uploadPaper = async (file, onProgress) => {
@@ -84,13 +84,13 @@ api.getMarketBooks = (refresh = false) => api.get('/market/books', { params: ref
 api.importBook = (pdfPath, filename) => api.post('/market/import', { pdf_path: pdfPath, filename });
 
 // Intensive Reading (精读训练)
-api.getIntensiveArticles = () => api.get('/intensive/articles');
+api.getIntensiveArticles = (params) => api.get('/intensive/articles', { params });
 api.getIntensiveArticle = (id) => api.get(`/intensive/articles/${id}`);
 api.generateIntensiveGuide = (id) => api.post(`/intensive/articles/${id}/guide`);
 api.scoreSummary = (id, keyPoints, summary) => api.post(`/intensive/articles/${id}/score`, { key_points: keyPoints, summary });
 
 // Extensive Reading (泛读训练：新闻短文)
-api.getExtensiveArticles = () => api.get('/extensive/articles');
+api.getExtensiveArticles = (params) => api.get('/extensive/articles', { params });
 api.getExtensiveArticle = (id) => api.get(`/extensive/articles/${id}`);
 api.generateExtensiveQuestions = (id) => api.post(`/extensive/articles/${id}/questions`);
 api.scoreExtensive = (id, questions, answers) => api.post(`/extensive/articles/${id}/score`, { questions, answers });

@@ -20,8 +20,8 @@ class ExtensiveScoreRequest(BaseModel):
 
 
 @router.get("/articles")
-async def list_articles():
-    return _service.list_articles()
+async def list_articles(limit: int = 20, offset: int = 0):
+    return _service.list_articles(limit, offset)
 
 
 @router.get("/articles/{article_id}")
