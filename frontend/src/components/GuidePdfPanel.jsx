@@ -40,7 +40,7 @@ function GuidePdfPanel({ fileUrl, page, onClose }) {
         let doc;
         if (_pdfCache && _pdfCacheUrl === fileUrl) doc = _pdfCache;
         else {
-          doc = await pdfjsLib.getDocument({ url: fileUrl }).promise;
+          doc = await pdfjsLib.getDocument({ url: fileUrl, disableAutoFetch: true, rangeChunkSize: 65536 }).promise;
           _pdfCache = doc;
           _pdfCacheUrl = fileUrl;
         }
@@ -109,7 +109,7 @@ function GuidePdfPanel({ fileUrl, page, onClose }) {
     try {
       const pdfPage = await pdf.getPage(pageNum);
       const s = scaleRef.current;
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       const vp = pdfPage.getViewport({ scale: s });
       const canvas = document.createElement('canvas');
       canvas.width = vp.width * dpr;
