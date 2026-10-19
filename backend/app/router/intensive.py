@@ -1,14 +1,17 @@
 """精读训练路由。"""
+import os
 from typing import List, Dict
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.service.intensive import IntensiveService
+from app.service.level import LevelStore
 
 router = APIRouter(prefix="/api/intensive", tags=["intensive"])
 
 _service = IntensiveService()
+_level_store = LevelStore(os.path.join(os.path.dirname(__file__), "..", "..", "data", "level.json"))
 
 
 class ScoreRequest(BaseModel):
@@ -61,4 +64,16 @@ async def score_summary(article_id: int, req: ScoreRequest):
     article = _service.get_article(article_id)
     if not article:
         raise HTTPException(404, "Article not found")
-    return await _service.score_summary(article, req.key_points, req.summary)
+    result = await _service.score_summary(article, req.key_points, req.summary)
+    # 难度自适应：低分降档、高分升档
+    try:
+        s = float(result.get("score", 0))
+        if s < 60:
+            result["level"] = _level_store.adjust(-1)
+        elif s > 85:
+            result["level"] = _level_store.adjust(1)
+        else:
+            result["level"] = _level_store.get_level()
+    except (TypeError, ValueError):
+        pass
+    return result

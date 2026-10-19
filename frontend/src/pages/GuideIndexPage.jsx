@@ -10,6 +10,7 @@ function GuideIndexPage({ active, onOpenArticle }) {
   const [extensive, setExtensive] = useState([]);
   const [papers, setPapers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [level, setLevel] = useState(3);
 
   useEffect(() => {
     if (active) {
@@ -18,10 +19,12 @@ function GuideIndexPage({ active, onOpenArticle }) {
         api.getIntensiveArticles(),
         api.getExtensiveArticles(),
         api.getPapers(),
-      ]).then(([ir, er, pr]) => {
+        api.getLevel(),
+      ]).then(([ir, er, pr, lr]) => {
         setIntensive(ir.data || []);
         setExtensive(er.data || []);
         setPapers(pr.data || []);
+        setLevel(lr.data?.level || 3);
         setLoading(false);
       }).catch(() => setLoading(false));
     }
@@ -31,8 +34,10 @@ function GuideIndexPage({ active, onOpenArticle }) {
 
   const readyPapers = papers.filter(p => p.status === 'ready');
 
-  // 今天该读：优先泛读最新一篇（每天的角色），否则精读
-  const todayArticle = extensive[0] || intensive[0] || null;
+  // 今天该读：优先泛读最新一篇（每天的角色），否则精读（按当前难度档位匹配）
+  const targetLevel = `L${level}`;
+  const intensivePick = intensive.find(a => a.level === targetLevel) || intensive[0];
+  const todayArticle = extensive[0] || intensivePick || null;
   const todayType = extensive[0] ? 'extensive' : 'intensive';
 
   return (

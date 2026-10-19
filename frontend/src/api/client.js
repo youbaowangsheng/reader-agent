@@ -117,5 +117,6 @@ api.magazineToPaper = (id) => api.post(`/magazine/${id}/to-paper`);
 // Reading log (读完记录)
 api.markRead = (type, id) => api.post('/reading/mark-read', { type, id });
 api.getReadLog = () => api.get('/reading');
+api.getLevel = () => api.get('/reading/level');
 
 export { api };
