@@ -86,7 +86,7 @@ async def list_papers(
     stmt = (
         select(Paper)
         .where(Paper.user_id == user.id)
-        .order_by(Paper.last_read_at.desc().nullslast(), Paper.created_at.desc())
+        .order_by(Paper.created_at.desc())
         .limit(limit)
         .offset(offset)
     )

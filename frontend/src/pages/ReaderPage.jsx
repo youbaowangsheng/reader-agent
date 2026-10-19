@@ -6,6 +6,12 @@ const GuidePdfPanel = lazy(() => import('../components/GuidePdfPanel'));
 // 原文列表模块级缓存（切换 tab 秒出）
 let _papersCache = null;
 
+// 最近 7 天加入的原文视为"新"，列表标 NEW 角标
+const isNewPaper = (createdAt) => {
+  if (!createdAt) return false;
+  return (Date.now() - new Date(createdAt).getTime()) < 7 * 86400000;
+};
+
 function ReaderPage({ active, openPaperId }) {
   const [papers, setPapers] = useState([]);
   const [papersLoading, setPapersLoading] = useState(true);
@@ -141,7 +147,10 @@ function ReaderPage({ active, openPaperId }) {
               disabled={p.status !== 'ready'}
               title={p.filename}
             >
-              <span className="intensive-title">{p.filename}</span>
+              <span className="intensive-title">
+                {p.filename}
+                {isNewPaper(p.created_at) && <span className="new-badge">NEW</span>}
+              </span>
               <span className="intensive-meta">
                 <span>{p.status === 'ready' ? '可阅读' : p.status === 'processing' ? '解析中…' : p.status === 'parsed' ? '准备中…' : p.status === 'error' ? '失败' : '待解析'}</span>
               </span>
