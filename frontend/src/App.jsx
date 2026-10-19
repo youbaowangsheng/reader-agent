@@ -81,41 +81,42 @@ function App() {
 function NavBar({ user, activeTab, onTabChange, onLogout }) {
   return (
     <div className="nav-bar">
-      <div className="nav-left">
+      <div className="nav-brand-row">
         <div className="logo">
           <span className="mark">R</span>
-          Reader <span className="sub">AI 陪你精读每一篇</span>
+          <span>Reader</span>
         </div>
-        <div className="nav-tabs">
-          <button
-            className={`nav-tab ${activeTab === 'guide' ? 'active' : ''}`}
-            onClick={() => onTabChange('guide')}
-          >首页导读</button>
-          <button
-            className={`nav-tab ${activeTab === 'intensive' ? 'active' : ''}`}
-            onClick={() => onTabChange('intensive')}
-          >AI精读</button>
-          <button
-            className={`nav-tab ${activeTab === 'extensive' ? 'active' : ''}`}
-            onClick={() => onTabChange('extensive')}
-          >AI泛读</button>
-          <button
-            className={`nav-tab ${activeTab === 'papers' ? 'active' : ''}`}
-            onClick={() => onTabChange('papers')}
-          >原文阅读</button>
-          <button
-            className={`nav-tab ${activeTab === 'shelf' ? 'active' : ''}`}
-            onClick={() => onTabChange('shelf')}
-          >我的书架</button>
-          <button
-            className={`nav-tab ${activeTab === 'market' ? 'active' : ''}`}
-            onClick={() => onTabChange('market')}
-          >图书市场</button>
+        <div className="nav-slogan">读得精 · 读得快 · 读得原味，AI 一路陪你</div>
+        <div className="nav-right">
+          <div className="user-avatar">{user?.email?.[0]?.toUpperCase() || 'U'}</div>
+          <button className="btn-ghost" onClick={onLogout}>退出</button>
         </div>
       </div>
-      <div className="nav-right">
-        <div className="user-avatar">{user?.email?.[0]?.toUpperCase() || 'U'}</div>
-        <button className="btn-ghost" onClick={onLogout}>退出</button>
+      <div className="nav-tabs">
+        <button
+          className={`nav-tab ${activeTab === 'guide' ? 'active' : ''}`}
+          onClick={() => onTabChange('guide')}
+        >首页导读</button>
+        <button
+          className={`nav-tab ${activeTab === 'intensive' ? 'active' : ''}`}
+          onClick={() => onTabChange('intensive')}
+        >AI精读</button>
+        <button
+          className={`nav-tab ${activeTab === 'extensive' ? 'active' : ''}`}
+          onClick={() => onTabChange('extensive')}
+        >AI泛读</button>
+        <button
+          className={`nav-tab ${activeTab === 'papers' ? 'active' : ''}`}
+          onClick={() => onTabChange('papers')}
+        >原文阅读</button>
+        <button
+          className={`nav-tab ${activeTab === 'shelf' ? 'active' : ''}`}
+          onClick={() => onTabChange('shelf')}
+        >我的书架</button>
+        <button
+          className={`nav-tab ${activeTab === 'market' ? 'active' : ''}`}
+          onClick={() => onTabChange('market')}
+        >图书市场</button>
       </div>
     </div>
   );
@@ -146,7 +147,7 @@ function LoginPage({ onLogin }) {
           <span className="logo">R</span>
           Reader Agent
         </div>
-        <p className="subtitle">AI 陪你精读每一篇</p>
+        <p className="subtitle">读得精 · 读得快 · 读得原味，AI 一路陪你</p>
         <form onSubmit={handleSubmit}>
           <input
             type="email"
