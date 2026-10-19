@@ -114,4 +114,8 @@ api.uploadMagazine = async (file, onProgress) => {
 api.importMagazine = (id) => api.post(`/magazine/${id}/import`);
 api.magazineToPaper = (id) => api.post(`/magazine/${id}/to-paper`);
 
+// Reading log (读完记录)
+api.markRead = (type, id) => api.post('/reading/mark-read', { type, id });
+api.getReadLog = () => api.get('/reading');
+
 export { api };

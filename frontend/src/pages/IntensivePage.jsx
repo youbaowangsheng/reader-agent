@@ -15,10 +15,22 @@ function IntensivePage({ active, openArticle }) {
   const [generatingIds, setGeneratingIds] = useState({});
   const currentIdRef = useRef(null);
   const [listCollapsed, setListCollapsed] = useState(false);
+  const [readMap, setReadMap] = useState({});
 
   useEffect(() => {
     if (active && articles.length === 0) {
       api.getIntensiveArticles().then(r => setArticles(r.data)).catch(() => {});
+    }
+  }, [active]);
+
+  // 加载已读记录（用于"标记读完"状态）
+  useEffect(() => {
+    if (active) {
+      api.getReadLog().then(r => {
+        const m = {};
+        (r.data?.read || []).forEach(e => { m[`${e.type}:${e.id}`] = true; });
+        setReadMap(m);
+      }).catch(() => {});
     }
   }, [active]);
 
@@ -49,6 +61,13 @@ function IntensivePage({ active, openArticle }) {
         }
       }).catch(() => {});
     }
+  };
+
+  const markRead = () => {
+    if (!selected) return;
+    api.markRead('intensive', selected.id).then(() => {
+      setReadMap(m => ({ ...m, [`intensive:${selected.id}`]: true }));
+    }).catch(() => {});
   };
 
   const genGuide = () => {
@@ -129,6 +148,9 @@ function IntensivePage({ active, openArticle }) {
                 <span className="intensive-level" style={{ background: LEVEL_COLOR[selected.level] || '#999' }}>{selected.level}</span>
                 <span>{selected.topic} · {selected.word_count}词</span>
               </div>
+              <button className={`mark-read-btn ${readMap[`intensive:${selected.id}`] ? 'done' : ''}`} onClick={markRead}>
+                {readMap[`intensive:${selected.id}`] ? '✓ 已读完' : '标记读完'}
+              </button>
             </div>
 
             <button className="intensive-gen-btn" onClick={genGuide} disabled={generating}>

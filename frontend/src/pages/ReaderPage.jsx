@@ -15,6 +15,7 @@ function ReaderPage({ active, openPaperId }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [tocCollapsed, setTocCollapsed] = useState(false);
+  const [readMap, setReadMap] = useState({});
 
   // 加载原文列表
   useEffect(() => {
@@ -29,6 +30,17 @@ function ReaderPage({ active, openPaperId }) {
       _papersCache = res.data;
       setPapers(res.data);
     }).catch(() => {}).finally(() => setPapersLoading(false));
+  }, [active]);
+
+  // 加载已读记录（用于"标记读完"状态）
+  useEffect(() => {
+    if (active) {
+      api.getReadLog().then(r => {
+        const m = {};
+        (r.data?.read || []).forEach(e => { m[`${e.type}:${e.id}`] = true; });
+        setReadMap(m);
+      }).catch(() => {});
+    }
   }, [active]);
 
   // 从首页导读跳转过来时，打开指定原文
@@ -74,6 +86,13 @@ function ReaderPage({ active, openPaperId }) {
       setUploading(false);
       e.target.value = '';
     }
+  };
+
+  const markRead = () => {
+    if (!selectedId) return;
+    api.markRead('paper', selectedId).then(() => {
+      setReadMap(m => ({ ...m, [`paper:${selectedId}`]: true }));
+    }).catch(() => {});
   };
 
   if (!active) return null;
@@ -140,6 +159,12 @@ function ReaderPage({ active, openPaperId }) {
         ) : !fileUrl ? (
           <div className="intensive-placeholder">加载中…</div>
         ) : (
+          <>
+          <div className="paper-toolbar">
+            <button className={`mark-read-btn ${readMap[`paper:${selectedId}`] ? 'done' : ''}`} onClick={markRead}>
+              {readMap[`paper:${selectedId}`] ? '✓ 已读完' : '标记读完'}
+            </button>
+          </div>
           <div className="paper-body">
             <div className={`paper-toc ${tocCollapsed ? 'collapsed' : ''}`}>
               <div className="paper-toc-head">
@@ -169,6 +194,7 @@ function ReaderPage({ active, openPaperId }) {
               </Suspense>
             </div>
           </div>
+          </>
         )}
       </main>
     </div>

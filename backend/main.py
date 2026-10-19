@@ -9,7 +9,7 @@ from config import get_settings
 from app.model.database import engine, Base
 from app.model.project import Project  # noqa: F401 - registers model
 
-from app.router import papers, chunks, notes, fact_cards, sessions, auth, projects, market, reading_guide, intensive, extensive, generated, magazine
+from app.router import papers, chunks, notes, fact_cards, sessions, auth, projects, market, reading_guide, intensive, extensive, generated, magazine, reading
 
 settings = get_settings()
 settings.validate_security_config()
@@ -64,6 +64,7 @@ app.include_router(intensive.router)
 app.include_router(extensive.router)
 app.include_router(generated.router)
 app.include_router(magazine.router)
+app.include_router(reading.router)
 
 
 @app.get("/health")

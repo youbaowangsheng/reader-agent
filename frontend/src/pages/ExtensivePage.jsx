@@ -11,10 +11,22 @@ function ExtensivePage({ active, openArticle }) {
   const [scoring, setScoring] = useState(false);
   const currentIdRef = useRef(null);
   const [listCollapsed, setListCollapsed] = useState(false);
+  const [readMap, setReadMap] = useState({});
 
   useEffect(() => {
     if (active && articles.length === 0) {
       api.getExtensiveArticles().then(r => setArticles(r.data)).catch(() => {});
+    }
+  }, [active]);
+
+  // 加载已读记录（用于"标记读完"状态）
+  useEffect(() => {
+    if (active) {
+      api.getReadLog().then(r => {
+        const m = {};
+        (r.data?.read || []).forEach(e => { m[`${e.type}:${e.id}`] = true; });
+        setReadMap(m);
+      }).catch(() => {});
     }
   }, [active]);
 
@@ -36,6 +48,13 @@ function ExtensivePage({ active, openArticle }) {
     // 自动加载已生成的大意检测题（持久化，下次直接看）
     api.getExtensiveQuestions(id).then(r => {
       if (currentIdRef.current === id && r.data) setQuestions(r.data);
+    }).catch(() => {});
+  };
+
+  const markRead = () => {
+    if (!selected) return;
+    api.markRead('extensive', selected.id).then(() => {
+      setReadMap(m => ({ ...m, [`extensive:${selected.id}`]: true }));
     }).catch(() => {});
   };
 
@@ -103,6 +122,9 @@ function ExtensivePage({ active, openArticle }) {
               <div className="intensive-meta">
                 <span>{selected.source} · {selected.word_count}词</span>
               </div>
+              <button className={`mark-read-btn ${readMap[`extensive:${selected.id}`] ? 'done' : ''}`} onClick={markRead}>
+                {readMap[`extensive:${selected.id}`] ? '✓ 已读完' : '标记读完'}
+              </button>
             </div>
 
             <div className="intensive-sec-title">📄 全文</div>
