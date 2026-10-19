@@ -277,7 +277,7 @@ p:hover .ask-inline{opacity:1}
 .guide-pdf-footer{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px;border-top:1px solid var(--border-strong);background:var(--bg-subtle)}
 .guide-pdf-footer-page{font-size:12px;color:var(--text-3)}
 .guide-pdf-panel:fullscreen{background:#525659;max-height:none;height:100%}
-.guide-pdf-panel:fullscreen .guide-pdf-body{flex:1;display:flex;align-items:center;justify-content:center}
+.guide-pdf-panel:fullscreen .guide-pdf-body{flex:1;overflow:auto;display:block}
 
 .guide-paper-head{padding:28px 0 4px}
 .guide-tag{font-size:12px;color:var(--accent);font-weight:600;text-transform:uppercase;letter-spacing:.8px}
