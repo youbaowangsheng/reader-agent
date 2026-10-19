@@ -535,6 +535,15 @@ p:hover .ask-inline{opacity:1}
 .guide-index-card-info{display:flex;flex-direction:column;gap:4px;padding:2px 4px 4px}
 .guide-index-card-title{font-size:13px;font-weight:600;color:var(--text);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .guide-index-card-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-4)}
+.guide-index-section-title{font-size:14px;font-weight:700;color:var(--text);margin:22px 0 10px}
+.today-card{display:flex;gap:20px;align-items:center;background:#fff;border-radius:14px;box-shadow:var(--border);padding:18px 20px;max-width:760px;cursor:pointer;transition:box-shadow .15s}
+.today-card:hover{box-shadow:0 0 0 2px var(--accent)}
+.today-cover{width:120px;flex-shrink:0}
+.today-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}
+.today-label{font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.5px}
+.today-title{font-size:17px;font-weight:700;color:var(--text);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.today-meta{font-size:12.5px;color:var(--text-4)}
+.today-btn{display:inline-flex;align-items:center;gap:4px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;padding:7px 14px;border-radius:8px;margin-top:2px;align-self:flex-start}
 .guide-index-empty{padding:20px;text-align:center;color:var(--text-4);font-size:13px;background:#fff;border-radius:10px;box-shadow:var(--border)}
 /* 杂志书架 */
 .shelf-hint{font-size:13px;color:var(--text-4);margin:4px 32px 16px}

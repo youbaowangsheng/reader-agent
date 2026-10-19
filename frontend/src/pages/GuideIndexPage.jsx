@@ -31,12 +31,36 @@ function GuideIndexPage({ active, onOpenArticle }) {
 
   const readyPapers = papers.filter(p => p.status === 'ready');
 
+  // 今天该读：优先泛读最新一篇（每天的角色），否则精读
+  const todayArticle = extensive[0] || intensive[0] || null;
+  const todayType = extensive[0] ? 'extensive' : 'intensive';
+
   return (
     <div className="guide-index">
       <div className="guide-index-head">
-        <h2>📖 首页导读</h2>
-        <p>三种阅读能力，选一种开始</p>
+        <h2>📖 首页</h2>
+        <p>每天读一篇，把阅读坚持下去</p>
       </div>
+
+      {!loading && todayArticle && (
+        <div className="today-card" onClick={() => onOpenArticle(todayType, todayArticle.id)}>
+          <div className="today-cover">
+            <Cover title={todayArticle.title} type={todayType === 'extensive' ? '今日泛读' : '今日精读'} subtitle={todayArticle.source || todayArticle.topic || ''} />
+          </div>
+          <div className="today-info">
+            <div className="today-label">🎯 今天该读</div>
+            <div className="today-title">{todayArticle.title}</div>
+            <div className="today-meta">
+              {todayType === 'extensive'
+                ? `${todayArticle.word_count}词 · ${todayArticle.source} · 约10分钟`
+                : `${todayArticle.topic} · ${todayArticle.word_count}词 · 约35分钟`}
+            </div>
+            <div className="today-btn">开始读 →</div>
+          </div>
+        </div>
+      )}
+
+      <div className="guide-index-section-title">📚 全部文章</div>
 
       <div className="guide-index-tabs">
         <button className={`guide-index-tab ${tab === 'intensive' ? 'active' : ''}`} onClick={() => setTab('intensive')}>
