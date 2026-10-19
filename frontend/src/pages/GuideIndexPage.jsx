@@ -11,6 +11,7 @@ function GuideIndexPage({ active, onOpenArticle }) {
   const [papers, setPapers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [level, setLevel] = useState(3);
+  const [stats, setStats] = useState({ topics: {}, days_since: null });
 
   useEffect(() => {
     if (active) {
@@ -20,11 +21,13 @@ function GuideIndexPage({ active, onOpenArticle }) {
         api.getExtensiveArticles(),
         api.getPapers(),
         api.getLevel(),
-      ]).then(([ir, er, pr, lr]) => {
+        api.getStats(),
+      ]).then(([ir, er, pr, lr, sr]) => {
         setIntensive(ir.data || []);
         setExtensive(er.data || []);
         setPapers(pr.data || []);
         setLevel(lr.data?.level || 3);
+        setStats(sr.data || { topics: {}, days_since: null });
         setLoading(false);
       }).catch(() => setLoading(false));
     }
@@ -34,11 +37,24 @@ function GuideIndexPage({ active, onOpenArticle }) {
 
   const readyPapers = papers.filter(p => p.status === 'ready');
 
-  // 今天该读：优先泛读最新一篇（每天的角色），否则精读（按当前难度档位匹配）
+  // 今天该读：优先泛读；断读(>=3天)推最短泛读轻量启动；精读按难度+兴趣匹配
   const targetLevel = `L${level}`;
-  const intensivePick = intensive.find(a => a.level === targetLevel) || intensive[0];
-  const todayArticle = extensive[0] || intensivePick || null;
-  const todayType = extensive[0] ? 'extensive' : 'intensive';
+  const topicRank = stats.topics || {};
+  const pickIntensive = () => {
+    const levelMatches = intensive.filter(a => a.level === targetLevel);
+    const pool = levelMatches.length ? levelMatches : intensive;
+    const sorted = [...pool].sort((a, b) => (topicRank[b.topic] || 0) - (topicRank[a.topic] || 0));
+    return sorted[0] || intensive[0];
+  };
+  const stale = stats.days_since != null && stats.days_since >= 3;
+  let todayArticle, todayType;
+  if (stale && extensive.length) {
+    todayArticle = [...extensive].sort((a, b) => a.word_count - b.word_count)[0];
+    todayType = 'extensive';
+  } else {
+    todayArticle = extensive[0] || pickIntensive() || null;
+    todayType = extensive[0] ? 'extensive' : 'intensive';
+  }
 
   return (
     <div className="guide-index">
@@ -53,7 +69,7 @@ function GuideIndexPage({ active, onOpenArticle }) {
             <Cover title={todayArticle.title} type={todayType === 'extensive' ? '今日泛读' : '今日精读'} subtitle={todayArticle.source || todayArticle.topic || ''} />
           </div>
           <div className="today-info">
-            <div className="today-label">🎯 今天该读</div>
+            <div className="today-label">{stale ? '🎯 回来啦，先读一篇轻松的' : '🎯 今天该读'}</div>
             <div className="today-title">{todayArticle.title}</div>
             <div className="today-meta">
               {todayType === 'extensive'

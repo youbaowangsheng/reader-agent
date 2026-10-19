@@ -118,5 +118,6 @@ api.magazineToPaper = (id) => api.post(`/magazine/${id}/to-paper`);
 api.markRead = (type, id) => api.post('/reading/mark-read', { type, id });
 api.getReadLog = () => api.get('/reading');
 api.getLevel = () => api.get('/reading/level');
+api.getStats = () => api.get('/reading/stats');
 
 export { api };
