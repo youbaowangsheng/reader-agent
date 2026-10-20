@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../api/client';
+import { Thumb } from '../components/Cover';
 
 function ExtensivePage({ active, openArticle }) {
   const [articles, setArticles] = useState([]);
@@ -124,11 +125,14 @@ function ExtensivePage({ active, openArticle }) {
             className={`intensive-item ${selected?.id === a.id ? 'active' : ''}`}
             onClick={() => selectArticle(a.id)}
           >
-            <span className="intensive-title">{a.title}</span>
-            {a.created_at && (Date.now() - new Date(a.created_at).getTime()) < 7 * 24 * 3600 * 1000 && (
-              <span className="new-badge">NEW</span>
-            )}
-            <span className="intensive-meta"><span>{a.word_count}词</span><span>{a.source}</span></span>
+            <Thumb title={a.title} size="sm" />
+            <span className="intensive-item-body">
+              <span className="intensive-title">{a.title}</span>
+              {a.created_at && (Date.now() - new Date(a.created_at).getTime()) < 7 * 24 * 3600 * 1000 && (
+                <span className="new-badge">新</span>
+              )}
+              <span className="intensive-meta"><span>{a.word_count}词</span><span>{a.source}</span></span>
+            </span>
           </button>
         ))}
         {!listCollapsed && articles.length > 0 && (

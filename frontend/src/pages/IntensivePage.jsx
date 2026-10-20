@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../api/client';
+import { Thumb } from '../components/Cover';
 
 const LEVEL_COLOR = { L1: '#4caf50', L2: '#8bc34a', L3: '#ffb300', L4: '#ff7043', L5: '#e53935' };
 
@@ -146,13 +147,16 @@ function IntensivePage({ active, openArticle }) {
               className={`intensive-item ${selected?.id === a.id ? 'active' : ''}`}
               onClick={() => selectArticle(a.id)}
             >
-              <span className="intensive-title">{a.title}</span>
-              {a.created_at && (Date.now() - new Date(a.created_at).getTime()) < 7 * 24 * 3600 * 1000 && (
-                <span className="new-badge">NEW</span>
-              )}
-              <span className="intensive-meta">
-                <span className="intensive-level" style={{ background: LEVEL_COLOR[a.level] || '#999' }}>{a.level}</span>
-                <span>{a.topic} · {a.word_count}词</span>
+              <Thumb title={a.title} keyword={a.topic} size="sm" />
+              <span className="intensive-item-body">
+                <span className="intensive-title">{a.title}</span>
+                {a.created_at && (Date.now() - new Date(a.created_at).getTime()) < 7 * 24 * 3600 * 1000 && (
+                  <span className="new-badge">新</span>
+                )}
+                <span className="intensive-meta">
+                  <span className="intensive-level" style={{ background: LEVEL_COLOR[a.level] || '#999' }}>{a.level}</span>
+                  <span>{a.topic} · {a.word_count}词</span>
+                </span>
               </span>
             </button>
           ))}

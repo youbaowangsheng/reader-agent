@@ -162,7 +162,7 @@ function ReaderPage({ active, openPaperId }) {
             >
               <span className="intensive-title">
                 {p.filename}
-                {isNewPaper(p.created_at) && <span className="new-badge">NEW</span>}
+                {isNewPaper(p.created_at) && <span className="new-badge">新</span>}
               </span>
               <span className="intensive-meta">
                 <span>{p.status === 'ready' ? '可阅读' : p.status === 'processing' ? '解析中…' : p.status === 'parsed' ? '准备中…' : p.status === 'error' ? '失败' : '待解析'}</span>

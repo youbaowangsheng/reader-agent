@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     auth_secret_key: str = "dev-only-secret-do-not-use-in-production"
     auth_token_ttl_hours: int = 24
     dev_login_users: str = '{"demo@example.com":"demo"}'
+    # 阿里云短信（手机号验证码登录）。AccessKey 走环境变量，勿硬编码提交
+    sms_access_key_id: str = ""
+    sms_access_key_secret: str = ""
+    sms_sign_name: str = "湖南器宇"
+    sms_template_code: str = "SMS_495885236"
     cors_origins: str = "http://localhost:3001,http://127.0.0.1:3001,capacitor://localhost,http://localhost,https://localhost"
     public_storage_enabled: bool = True
     auto_generate_note: bool = True

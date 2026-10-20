@@ -61,6 +61,28 @@ def create_access_token(email: str) -> str:
     return f"{payload_b64}.{sig}"
 
 
+def create_access_token_phone(phone: str) -> str:
+    """手机号验证码登录的 token：用户身份 = uuid5(手机号)，payload 带 phone。
+
+    兼容 get_current_user：email 字段仍填手机号（AuthUser.email 即手机号），
+    另加 phone 字段供前端展示。
+    """
+    now = datetime.now(timezone.utc)
+    exp = now + timedelta(hours=settings.auth_token_ttl_hours)
+    phone_norm = phone.strip()
+    user_id = _stable_user_id_from_email(phone_norm)
+    payload = {
+        "sub": str(user_id),
+        "email": phone_norm,
+        "phone": phone_norm,
+        "iat": int(now.timestamp()),
+        "exp": int(exp.timestamp()),
+    }
+    payload_b64 = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    sig = _sign(payload_b64)
+    return f"{payload_b64}.{sig}"
+
+
 def decode_access_token(token: str) -> Dict[str, Any]:
     try:
         payload_b64, sig = token.split(".", 1)

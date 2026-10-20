@@ -31,7 +31,8 @@ api.setToken = (t) => {
   }
 };
 
-api.login = (email, password) => api.post('/auth/login', { email, password });
+api.sendCode = (phone) => api.post('/auth/send-code', { phone });
+api.login = (phone, code) => api.post('/auth/login', { phone, code });
 api.getMe = () => api.get('/auth/me');
 api.registerPushToken = (token) => api.post('/push/register', { token, platform: 'capacitor' });
 

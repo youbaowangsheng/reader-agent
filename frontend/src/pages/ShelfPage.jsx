@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api/client';
-import Cover from '../components/Cover';
+import { Thumb } from '../components/Cover';
 
 function ShelfPage({ active }) {
   const [magazines, setMagazines] = useState([]);
@@ -123,19 +123,21 @@ function ShelfPage({ active }) {
           {magazines.map(m => (
             <div key={m.id} className="magazine-block">
               <div className="shelf-paper-item" onClick={() => toggleExpand(m.id)}>
-                <div className="sp-cover">
-                  <Cover title={m.filename?.replace(/\.pdf$/i, '') || m.filename} type="杂志" />
-                </div>
-                <div className="sp-info">
-                  <div className="sp-name">{m.filename}</div>
-                  <div className="sp-meta">
-                    <span className={`sp-status ${m.status === 'done' ? 'st-ready' : m.status === 'importing' ? 'st-processing' : ''}`}>
-                      {statusLabel(m.status)}
-                    </span>
-                    <span> · {m.article_count} 篇文章</span>
-                    {m.imported && (m.imported.intensive > 0 || m.imported.extensive > 0) && (
-                      <span> · 入库 精读{m.imported.intensive} / 泛读{m.imported.extensive}</span>
-                    )}
+                <div className="sp-top">
+                  <div className="sp-cover">
+                    <Thumb title={m.filename?.replace(/\.pdf$/i, '') || m.filename} keyword="杂志" size="sm" />
+                  </div>
+                  <div className="sp-info">
+                    <div className="sp-name">{m.filename}</div>
+                    <div className="sp-meta">
+                      <span className={`sp-status ${m.status === 'done' ? 'st-ready' : m.status === 'importing' ? 'st-processing' : ''}`}>
+                        {statusLabel(m.status)}
+                      </span>
+                      <span> · {m.article_count} 篇文章</span>
+                      {m.imported && (m.imported.intensive > 0 || m.imported.extensive > 0) && (
+                        <span> · 入库 精读{m.imported.intensive} / 泛读{m.imported.extensive}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="sp-actions">
