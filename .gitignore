@@ -18,6 +18,14 @@ output/*_阅读笔记.md
 # IDE
 .vscode/
 .idea/
+
+# Capacitor App
+app/node_modules/
+app/ios/App/build/
+app/ios/App/DerivedData/
+app/android/.gradle/
+app/android/app/build/
+app/android/build/
 *.swp
 *.swo
 

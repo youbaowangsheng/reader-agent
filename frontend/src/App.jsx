@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { api } from './api/client';
+import { initPush } from './api/push';
 import ShelfPage from './pages/ShelfPage';
 import MarketPage from './pages/MarketPage';
 import GuideIndexPage from './pages/GuideIndexPage';
@@ -24,6 +25,13 @@ function App() {
         localStorage.removeItem('token');
         setToken(null);
       });
+    }
+  }, [token]);
+
+  // App 内登录后注册推送（device token 上传后端）
+  useEffect(() => {
+    if (token) {
+      initPush(api);
     }
   }, [token]);
 

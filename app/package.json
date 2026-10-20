@@ -1,0 +1,23 @@
+{
+  "name": "reader-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "外刊精读 App（Capacitor 壳，本地打包 reader-agent 前端）",
+  "scripts": {
+    "build": "cd ../frontend && npm run build",
+    "sync": "cap sync",
+    "copy": "cap copy",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3",
+    "@capacitor/push-notifications": "^8.1.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const API_BASE = '/api';
+// Capacitor App 内（本地打包，WebView 加载本地文件）指向远程后端；浏览器里走同源 /api
+const API_BASE = (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.())
+  ? 'https://reader.fipai.cn/api'
+  : '/api';
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -30,6 +33,7 @@ api.setToken = (t) => {
 
 api.login = (email, password) => api.post('/auth/login', { email, password });
 api.getMe = () => api.get('/auth/me');
+api.registerPushToken = (token) => api.post('/push/register', { token, platform: 'capacitor' });
 
 // Papers
 api.getPapers = (params) => api.get('/papers', { params });
