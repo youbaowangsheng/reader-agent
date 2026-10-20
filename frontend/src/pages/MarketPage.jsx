@@ -29,7 +29,7 @@ function MarketPage({ active }) {
   const handleImport = async (book) => {
     setImporting(prev => ({ ...prev, [book.filename]: true }));
     try {
-      const res = await api.importBook(book.pdf_path, book.filename);
+      const res = await api.importBook(book.pdf_path, book.filename, book.source);
       setImported(prev => ({ ...prev, [book.filename]: res.data.article_count || 0 }));
       alert(res.data.message || '已下载并拆分');
     } catch (err) {
@@ -80,7 +80,7 @@ function MarketPage({ active }) {
                     <Cover title={book.title || book.filename?.replace(/\.pdf$/i, '')} type="图书" subtitle={book.issue || ''} />
                   )}
                   <div className="mb-title">{book.title || book.filename?.replace(/\.pdf$/i, '')}</div>
-                  <div className="mb-meta">{book.issue || ''}</div>
+                  <div className="mb-meta">{book.issue || ''}{book.source ? ` · ${book.source}` : ''}</div>
                   {imported[book.filename] != null ? (
                     <span className="mb-done">已入库 {imported[book.filename]} 篇 ✓</span>
                   ) : (

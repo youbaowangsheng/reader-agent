@@ -38,6 +38,17 @@ class Settings(BaseSettings):
     public_storage_enabled: bool = True
     auto_generate_note: bool = True
 
+    # 图书市场多源（GitHub repo / OSS 混合），JSON 数组字符串
+    # 每项：name(来源标签) type(github/oss) + github: owner/repo/branch 或 oss: endpoint/bucket/access_key_id/access_key_secret/prefix
+    market_sources_json: str = '[{"name":"英语杂志","type":"github","owner":"youbaowangsheng","repo":"awesome-english-ebooks","branch":"master"}]'
+
+    def market_sources(self) -> List[dict]:
+        import json
+        try:
+            return json.loads(self.market_sources_json or "[]")
+        except Exception:
+            return []
+
     def cors_origin_list(self) -> List[str]:
         origins = [x.strip() for x in (self.cors_origins or "").split(",") if x.strip()]
         return origins or ["http://localhost:3001"]

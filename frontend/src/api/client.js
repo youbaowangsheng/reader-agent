@@ -81,7 +81,7 @@ api.clearSessionMemory = (paperId, sessionId) => api.delete(`/papers/${paperId}/
 
 // Market (GitHub 图书)
 api.getMarketBooks = (refresh = false) => api.get('/market/books', { params: refresh ? { refresh: 1 } : {} });
-api.importBook = (pdfPath, filename) => api.post('/market/import', { pdf_path: pdfPath, filename });
+api.importBook = (pdfPath, filename, source) => api.post('/market/import', { pdf_path: pdfPath, filename, source });
 
 // Intensive Reading (精读训练)
 api.getIntensiveArticles = (params) => api.get('/intensive/articles', { params });

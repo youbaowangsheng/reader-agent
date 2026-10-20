@@ -103,17 +103,14 @@ async def import_by_doi(
     return {"message": "DOI import not yet implemented", "doi": doi}
 
 
-# ===== 图书市场（GitHub 仓库，后续迁 OSS） =====
+# ===== 图书市场（多源：GitHub repo + OSS 混合） =====
 import re
 import time
-import uuid
+import asyncio
 
 from app.service.magazine import MagazineService
 
-GITHUB_OWNER = "youbaowangsheng"
-GITHUB_REPO = "awesome-english-ebooks"
-GITHUB_BRANCH = "master"
-
+# 顶层文件夹名 → 中文分类名；未映射的用原始文件夹名
 CATEGORY_NAMES = {
     "01_economist": "经济学人",
     "02_new_yorker": "纽约客",
@@ -127,13 +124,29 @@ _BOOKS_CACHE_TTL = 3600
 _magazine_service = MagazineService()
 
 
-async def _fetch_books():
-    """从 GitHub 仓库读取图书（英语杂志）列表，带缓存。"""
-    now = time.time()
-    if _books_cache["data"] and now - _books_cache["ts"] < _BOOKS_CACHE_TTL:
-        return _books_cache["data"]
+def _parse_book_path(path: str, source_name: str, size: int = 0) -> Optional[dict]:
+    """把仓库/OSS 里的相对路径解析成 book 记录。路径约定：category/issue/filename.pdf"""
+    parts = path.split("/")
+    if len(parts) < 3:
+        return None
+    category, issue_dir, filename = parts[0], parts[1], parts[2]
+    m = re.search(r"\d{4}\.\d{2}\.\d{2}", issue_dir)
+    issue = m.group(0) if m else issue_dir
+    return {
+        "category": category,
+        "category_name": CATEGORY_NAMES.get(category, category),
+        "issue": issue,
+        "filename": filename,
+        "pdf_path": path,
+        "size": size,
+        "source": source_name,
+    }
 
-    url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/git/trees/{GITHUB_BRANCH}?recursive=1"
+
+async def _fetch_github_books(source: dict) -> list:
+    """从单个 GitHub repo 拉取 PDF 列表。"""
+    owner, repo, branch = source.get("owner"), source.get("repo"), source.get("branch", "master")
+    url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/{branch}?recursive=1"
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.get(url)
         resp.raise_for_status()
@@ -144,37 +157,84 @@ async def _fetch_books():
         path = item.get("path", "")
         if not path.endswith(".pdf"):
             continue
-        parts = path.split("/")
-        if len(parts) < 3:
-            continue
-        category, issue_dir, filename = parts[0], parts[1], parts[2]
-        if category not in CATEGORY_NAMES:
-            continue
-        m = re.search(r"\d{4}\.\d{2}\.\d{2}", issue_dir)
-        issue = m.group(0) if m else issue_dir
-        books.append({
-            "category": category,
-            "category_name": CATEGORY_NAMES[category],
-            "issue": issue,
-            "filename": filename,
-            "pdf_path": path,
-            "size": item.get("size", 0),
-        })
+        b = _parse_book_path(path, source.get("name") or f"{owner}/{repo}", item.get("size", 0))
+        if b:
+            books.append(b)
+    return books
 
-    books.sort(key=lambda b: (b["category"], b["issue"]), reverse=True)
+
+async def _fetch_oss_books(source: dict) -> list:
+    """从阿里云 OSS bucket 拉取 PDF 列表（prefix 过滤 .pdf）。SDK 缺失或配置不全时返回空。"""
+    try:
+        import oss2
+    except ImportError:
+        return []
+    bucket_name, endpoint = source.get("bucket"), source.get("endpoint")
+    ak, sk = source.get("access_key_id"), source.get("access_key_secret")
+    prefix = source.get("prefix", "")
+    if not (bucket_name and endpoint and ak and sk):
+        return []
+    try:
+        bucket = oss2.Bucket(oss2.Auth(ak, sk), endpoint, bucket_name)
+        books = []
+        for obj in oss2.ObjectIterator(bucket, prefix=prefix):
+            key = obj.key
+            if not key.endswith(".pdf"):
+                continue
+            rel = key[len(prefix):].lstrip("/") if prefix else key
+            b = _parse_book_path(rel, source.get("name") or bucket_name, obj.size)
+            if b:
+                books.append(b)
+        return books
+    except Exception:
+        return []
+
+
+async def _fetch_all_books():
+    """并行拉取所有源，合并去重（相同 category+issue+filename 合并 source 标签）。"""
+    now = time.time()
+    if _books_cache["data"] and now - _books_cache["ts"] < _BOOKS_CACHE_TTL:
+        return _books_cache["data"]
+
+    sources = settings.market_sources()
+    results = await asyncio.gather(*[
+        (_fetch_github_books(s) if s.get("type") == "github" else _fetch_oss_books(s))
+        for s in sources
+    ], return_exceptions=True)
+
+    merged = {}
+    for books in results:
+        if isinstance(books, Exception):
+            continue  # 单个源失败不阻塞其他源
+        for b in books:
+            key = (b["category"], b["issue"], b["filename"])
+            if key in merged:
+                if b["source"] not in merged[key]["source"]:
+                    merged[key]["source"] += "、" + b["source"]
+            else:
+                merged[key] = b
+
+    books = sorted(merged.values(), key=lambda b: (b["category"], b["issue"]), reverse=True)
     _books_cache["data"] = books
     _books_cache["ts"] = now
     return books
 
 
+def _find_source(name: str) -> Optional[dict]:
+    for s in settings.market_sources():
+        if s.get("name") == name:
+            return s
+    return None
+
+
 @router.get("/books")
 async def list_books(user: AuthUser = Depends(get_current_user), refresh: int = 0):
-    """列出 GitHub 仓库里的图书，按杂志分类分组。refresh=1 时强制重新从 GitHub 拉取。"""
+    """列出所有源的图书，合并成一个列表按文件夹分类，书标来源。refresh=1 强制重新拉取。"""
     if refresh:
         _books_cache["data"] = None
         _books_cache["ts"] = 0
     try:
-        books = await _fetch_books()
+        books = await _fetch_all_books()
     except Exception as e:
         raise HTTPException(502, f"获取图书列表失败: {str(e)[:120]}")
 
@@ -187,13 +247,35 @@ async def list_books(user: AuthUser = Depends(get_current_user), refresh: int = 
 
 @router.post("/import")
 async def import_book(req: BookImportRequest, user: AuthUser = Depends(get_current_user)):
-    """从 GitHub 下载图书 PDF 并拆分进杂志书架。"""
-    raw_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{req.pdf_path}?ref={GITHUB_BRANCH}"
+    """从指定源下载图书 PDF 并拆分进杂志书架。"""
+    source = _find_source(req.source) if req.source else None
+    # 兼容旧调用：没传 source 时默认第一个源
+    if not source:
+        sources = settings.market_sources()
+        if not sources:
+            raise HTTPException(400, "未配置图书源")
+        source = sources[0]
+
     try:
-        async with httpx.AsyncClient(timeout=180, follow_redirects=True) as client:
-            resp = await client.get(raw_url, headers={"Accept": "application/vnd.github.raw"})
-            resp.raise_for_status()
-            content = resp.content
+        if source.get("type") == "github":
+            raw_url = f"https://api.github.com/repos/{source['owner']}/{source['repo']}/contents/{req.pdf_path}?ref={source.get('branch', 'master')}"
+            async with httpx.AsyncClient(timeout=180, follow_redirects=True) as client:
+                resp = await client.get(raw_url, headers={"Accept": "application/vnd.github.raw"})
+                resp.raise_for_status()
+                content = resp.content
+        elif source.get("type") == "oss":
+            try:
+                import oss2
+            except ImportError:
+                raise HTTPException(502, "OSS SDK 未安装")
+            prefix = source.get("prefix", "")
+            key = req.pdf_path if (not prefix or req.pdf_path.startswith(prefix)) else prefix + req.pdf_path
+            bucket = oss2.Bucket(oss2.Auth(source["access_key_id"], source["access_key_secret"]), source["endpoint"], source["bucket"])
+            content = bucket.get_object(key).read()
+        else:
+            raise HTTPException(400, f"不支持的类型: {source.get('type')}")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(502, f"下载失败: {str(e)[:120]}")
 

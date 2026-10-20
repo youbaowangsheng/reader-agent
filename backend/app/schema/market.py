@@ -23,3 +23,4 @@ class MarketSearchResponse(BaseModel):
 class BookImportRequest(BaseModel):
     pdf_path: str
     filename: str
+    source: str = ""
